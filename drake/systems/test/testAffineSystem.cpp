@@ -24,7 +24,7 @@ void testSizes(size_t num_states, size_t num_inputs, size_t num_outputs) {
   valuecheck(num_inputs, getNumInputs(sys));
   valuecheck(num_outputs, getNumOutputs(sys));
 
-  auto x = createStateVector<double>(sys);
+  auto x = sys.CreateStateVector();
   valuecheck(num_states, static_cast<size_t>(x.size()), "State vector size wrong");
 };
 
