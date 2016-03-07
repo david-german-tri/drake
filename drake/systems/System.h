@@ -6,8 +6,7 @@
 #include <Eigen/Dense>
 #include "drake/core/Core.h"
 
-namespace Drake
-{
+namespace Drake {
 
 /** @defgroup modeling Modeling Dynamical Systems
  * @{
@@ -29,27 +28,27 @@ namespace Drake
  * | Every model of this concept must implement |  |
  * ---------------------|------------------------------------------------------------|
  * | X::StateVector     | type for the internal state of the system, which
- * models the Vector<ScalarType> concept |
+ *models the Vector<ScalarType> concept |
  * | X::InputVector     | type for the input to the system, which models the
- * Vector<ScalarType> concept |
+ *Vector<ScalarType> concept |
  * | X::OutputVector    | type for the output from the system, which models the
- * Vector<ScalarType> concept |
+ *Vector<ScalarType> concept |
  * | template <ScalarType> StateVector<ScalarType> X::dynamics(const ScalarType&
- * t, const StateVector<ScalarType>& x, const InputVector<ScalarType>& u) | @f$
- * \dot{x} = \text{dynamics}(t,x,u) @f$ |
+ *t, const StateVector<ScalarType>& x, const InputVector<ScalarType>& u) | @f$
+ *\dot{x} = \text{dynamics}(t,x,u) @f$ |
  * | template <ScalarType> OutputVector<ScalarType> X::output(const ScalarType&
- * t, const StateVector<ScalarType>& x, const InputVector<ScalarType>& u) | @f$
- * y = \text{output}(t,x,u) @f$  |
+ *t, const StateVector<ScalarType>& x, const InputVector<ScalarType>& u) | @f$ y
+ *= \text{output}(t,x,u) @f$  |
  * | bool isTimeVarying()  | should return false if output() and dynamics()
- * methods do not depend on time.  @default true |
+ *methods do not depend on time.  @default true |
  * | bool isDirectFeedthrough() | should return false if output() does not
- * depend directly on the input u.  @default true |
+ *depend directly on the input u.  @default true |
  * | size_t getNumStates() | only required if the state vector is
- * dynamically-sized |
+ *dynamically-sized |
  * | size_t getNumInputs() | only required if the input vector is
- * dynamically-sized |
+ *dynamically-sized |
  * | size_t getNumOutputs() | only required if the output vector is
- * dynamically-sized |
+ *dynamically-sized |
  *
  * (always try to label your methods with const if possible)
  *
@@ -223,4 +222,5 @@ typename System::template StateVector<double> getInitialState(const System& sys)
 
 } // namespace Drake
 
-#endif  // DRAKE_SYSTEM_H
+#endif  // DRAKE_SYSTEM_H_
+

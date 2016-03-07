@@ -1,5 +1,9 @@
-#ifndef DRAKE_CASCADE_SYSTEM_H
-#define DRAKE_CASCADE_SYSTEM_H
+#ifndef DRAKE_SYSTEMS_CASCADE_SYSTEM_H_
+#define DRAKE_SYSTEMS_CASCADE_SYSTEM_H_
+
+#include <memory>
+#include "drake/core/Core.h"
+#include "drake/systems/System.h"
 
 namespace Drake {
 
