@@ -139,25 +139,18 @@ class DRAKERBSYSTEM_EXPORT RigidBodySystem {
   template <typename ScalarType>
   using OutputVector = Eigen::Matrix<ScalarType, Eigen::Dynamic, 1>;
 
-  RigidBodySystem(std::shared_ptr<RigidBodyTree> rigid_body_tree)
-      : tree(rigid_body_tree),
+  explicit RigidBodySystem(std::shared_ptr<RigidBodyTree> rigid_body_tree)
+      : tree_(rigid_body_tree),
         use_multi_contact(false),
         penetration_stiffness(150.0),
         penetration_damping(penetration_stiffness / 10.0),
         friction_coefficient(1.0),
-        direct_feedthrough(false) {};
-  RigidBodySystem()
-      : use_multi_contact(false),
-        penetration_stiffness(150.0),
-        penetration_damping(penetration_stiffness / 10.0),
-        friction_coefficient(1.0),
-        direct_feedthrough(false) {
-    // tree =
-    // std::allocate_shared<RigidBodyTree>(Eigen::aligned_allocator<RigidBodyTree>());
-    // // this crashed g++-4.7
-    tree = std::shared_ptr<RigidBodyTree>(new RigidBodyTree());
+        direct_feedthrough_(false) {};
 
-  }
+  RigidBodySystem()
+      : RigidBodySystem(std::shared_ptr<RigidBodyTree>(new RigidBodyTree())) {
+  };
+
   virtual ~RigidBodySystem(){};
 
   void addRobotFromURDFString(
@@ -175,15 +168,15 @@ class DRAKERBSYSTEM_EXPORT RigidBodySystem {
                             DrakeJoint::QUATERNION);
 
   void addForceElement(std::shared_ptr<RigidBodyForceElement> f) {
-    force_elements.push_back(f);
+    force_elements_.push_back(f);
   }
 
   void addSensor(std::shared_ptr<RigidBodySensor> s);
 
-  const std::shared_ptr<RigidBodyTree>& getRigidBodyTree(void) const { return tree; }
+  const std::shared_ptr<RigidBodyTree>& getRigidBodyTree(void) const { return tree_; }
 
-    size_t getNumStates() const {
-    return tree->num_positions + tree->num_velocities;
+  size_t getNumStates() const {
+    return tree_->num_positions() + tree_->num_velocities();
   }
   size_t getNumInputs() const;
   size_t getNumOutputs() const;
@@ -219,10 +212,13 @@ class DRAKERBSYSTEM_EXPORT RigidBodySystem {
                               const InputVector<double>& u) const;
 
   bool isTimeVarying() const { return false; }
-  bool isDirectFeedthrough() const { return direct_feedthrough; }
+  bool isDirectFeedthrough() const { return direct_feedthrough_; }
 
   friend DRAKERBSYSTEM_EXPORT StateVector<double> getInitialState(
       const RigidBodySystem& sys);
+
+  // The following legacy public data members violate the style guide.  Do not
+  // add new references outside RigidBodySystem!  Instead, add an accessor.
 
   // some parameters defining the contact
   bool use_multi_contact;
@@ -230,18 +226,14 @@ class DRAKERBSYSTEM_EXPORT RigidBodySystem {
   double penetration_damping;    // b
   double friction_coefficient;   // mu
 
- private:
-  std::shared_ptr<RigidBodyTree> tree;
-  std::vector<std::shared_ptr<RigidBodyForceElement> > force_elements;
-  std::vector<std::shared_ptr<RigidBodySensor> > sensors;
-  size_t num_sensor_outputs;
-  bool direct_feedthrough;
-
-  /*
-  mutable OptimizationProblem dynamics_program;
-  */
- public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+ private:
+  std::shared_ptr<RigidBodyTree> tree_;
+  std::vector<std::shared_ptr<RigidBodyForceElement> > force_elements_;
+  std::vector<std::shared_ptr<RigidBodySensor> > sensors_;
+  size_t num_sensor_outputs_;
+  bool direct_feedthrough_;
 };
 
 /** RigidBodyForceElement
@@ -278,11 +270,9 @@ Eigen::VectorXd spatialForceInFrameToJointTorque(
   std::vector<int> v_indices;
   auto J = tree->geometricJacobian(rigid_body_state, 0, frame->frame_index, 0,
                                    false, &v_indices);
-  Eigen::VectorXd tau = Eigen::VectorXd::Zero(tree->num_velocities);
+  Eigen::VectorXd tau = Eigen::VectorXd::Zero(tree_->num_velocities());
   for (int i = 0; i < v_indices.size(); i++) {
     tau(v_indices[i]) = J.col(i).dot(force_in_world);
-    //      std::cout << " f_" << tree->getVelocityName(v_indices[i]) << " = "
-    //      << tau(v_indices[i]) << std::endl;
   }
   return tau;
 }

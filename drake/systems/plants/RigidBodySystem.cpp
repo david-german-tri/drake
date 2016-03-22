@@ -13,7 +13,7 @@ using namespace tinyxml2;
 
 size_t RigidBodySystem::getNumInputs(void) const {
   size_t num = tree->actuators.size();
-  for (auto const& f : force_elements) {
+  for (auto const& f : force_elements_) {
     num += f->getNumInputs();
   }
   return num;
@@ -21,7 +21,7 @@ size_t RigidBodySystem::getNumInputs(void) const {
 
 size_t RigidBodySystem::getNumOutputs() const {
     int n = getNumStates();
-    for (const auto& s : sensors) {
+    for (const auto& s : sensors_) {
       n += s->getNumOutputs();
     }
     return n;
@@ -32,23 +32,21 @@ void RigidBodySystem::addSensor(std::shared_ptr<RigidBodySensor> s) {
   if (s->isDirectFeedthrough()) {
     direct_feedthrough = true;
   }
-  sensors.push_back(s);
+  sensors_.push_back(s);
 }
 
 RigidBodySystem::StateVector<double> RigidBodySystem::dynamics(
     const double& t, const RigidBodySystem::StateVector<double>& x,
     const RigidBodySystem::InputVector<double>& u) const {
-  using namespace std;
-  using namespace Eigen;
   eigen_aligned_unordered_map<const RigidBody*, Matrix<double, 6, 1> > f_ext;
 
   // todo: make kinematics cache once and re-use it (but have to make one per
   // type)
-  auto nq = tree->num_positions;
-  auto nv = tree->num_velocities;
-  auto num_actuators = tree->actuators.size();
-  auto q = x.topRows(nq);
-  auto v = x.bottomRows(nv);
+  const int num_positions = tree->num_positions();
+  const int num_velocities = tree->num_velocities();
+  const int num_actuators = tree->num_actuators();
+  auto q = x.topRows(num_positions);
+  auto v = x.bottomRows(num_velocities);
   auto kinsol = tree->doKinematics(q, v);
 
   // todo: preallocate the optimization problem and constraints, and simply
@@ -57,7 +55,7 @@ RigidBodySystem::StateVector<double> RigidBodySystem::dynamics(
   // the optimization framework should support this (though it has not been
   // tested thoroughly yet)
   OptimizationProblem prog;
-  auto const& vdot = prog.addContinuousVariables(nv, "vdot");
+  auto const& vdot = prog.addContinuousVariables(num_velocities, "vdot");
 
   auto H = tree->massMatrix(kinsol);
   Eigen::MatrixXd H_and_neg_JT = H;
@@ -65,101 +63,97 @@ RigidBodySystem::StateVector<double> RigidBodySystem::dynamics(
   VectorXd C = tree->dynamicsBiasTerm(kinsol, f_ext);
   if (num_actuators > 0) C -= tree->B * u.topRows(num_actuators);
 
-  {  // loop through rigid body force elements
+  // loop through rigid body force elements
+  // todo: distinguish between AppliedForce and ConstraintForce
+	size_t u_index = 0;
+	for (auto const& f : force_elements_) {
+	  size_t num_inputs = f->getNumInputs();
+	  VectorXd force_input(u.middleRows(u_index, num_inputs));
+	  C -= f->output(t, force_input, kinsol);
+	  u_index += num_inputs;
+	}
 
-    // todo: distinguish between AppliedForce and ConstraintForce
-
-    size_t u_index = 0;
-    for (auto const& f : force_elements) {
-      size_t num_inputs = f->getNumInputs();
-      VectorXd force_input(u.middleRows(u_index, num_inputs));
-      C -= f->output(t, force_input, kinsol);
-      u_index += num_inputs;
-    }
-  }
-
-  {  // apply joint limit forces
-    for (auto const& b : tree->bodies) {
-      if (!b->hasParent()) continue;
-      auto const& joint = b->getJoint();
-      if (joint.getNumPositions() == 1 &&
-          joint.getNumVelocities() ==
-              1) {  // taking advantage of only single-axis joints having joint
-                    // limits makes things easier/faster here
-        double qmin = joint.getJointLimitMin()(0),
-               qmax = joint.getJointLimitMax()(0);
-        // tau = k*(qlimit-q) - b(qdot)
-        if (q(b->position_num_start) < qmin)
-          C(b->velocity_num_start) -=
-              penetration_stiffness * (qmin - q(b->position_num_start)) -
-              penetration_damping * v(b->velocity_num_start);
-        else if (q(b->position_num_start) > qmax)
-          C(b->velocity_num_start) -=
-              penetration_stiffness * (qmax - q(b->position_num_start)) -
-              penetration_damping * v(b->velocity_num_start);
+  // apply joint limit forces
+  for (auto const& b : tree->bodies) {
+    if (!b->hasParent()) continue;
+    auto const& joint = b->getJoint();
+    if (joint.getNumPositions() == 1 && joint.getNumVelocities() == 1) {
+    // taking advantage of only single-axis joints having joint
+      // limits makes things easier/faster here
+      const double qmin = joint.getJointLimitMin()(0);
+      const double qmax = joint.getJointLimitMax()(0);
+      // tau = k*(qlimit-q) - b(qdot)
+      if (q(b->position_num_start) < qmin) {
+        C(b->velocity_num_start) -=
+            penetration_stiffness * (qmin - q(b->position_num_start)) -
+            penetration_damping * v(b->velocity_num_start);
+      } else if (q(b->position_num_start) > qmax) {
+        C(b->velocity_num_start) -=
+            penetration_stiffness * (qmax - q(b->position_num_start)) -
+            penetration_damping * v(b->velocity_num_start);
       }
     }
   }
 
-  {  // apply contact forces
-    VectorXd phi;
-    Matrix3Xd normal, xA, xB;
-    vector<int> bodyA_idx, bodyB_idx;
-    if (use_multi_contact)
-      tree->potentialCollisions(kinsol, phi, normal, xA, xB, bodyA_idx,
-                                bodyB_idx);
-    else
-      tree->collisionDetect(kinsol, phi, normal, xA, xB, bodyA_idx, bodyB_idx);
+  // apply contact forces
+  VectorXd phi;
+  Matrix3Xd normal, xA, xB;
+  vector<int> bodyA_idx, bodyB_idx;
+  if (use_multi_contact) {
+    tree->potentialCollisions(kinsol, phi, normal, xA, xB, bodyA_idx,
+                              bodyB_idx);
+  } else {
+    tree->collisionDetect(kinsol, phi, normal, xA, xB, bodyA_idx, bodyB_idx);
+  }
 
-    for (int i = 0; i < phi.rows(); i++) {
-      if (phi(i) < 0.0) {  // then i have contact
-        // todo: move this entire block to a shared an updated "contactJacobian"
-        // method in RigidBodyTree
-        auto JA = tree->transformPointsJacobian(kinsol, xA.col(i), bodyA_idx[i],
-                                                0, false);
-        auto JB = tree->transformPointsJacobian(kinsol, xB.col(i), bodyB_idx[i],
-                                                0, false);
-        Vector3d this_normal = normal.col(i);
+  for (int i = 0; i < phi.rows(); i++) {
+    if (phi(i) < 0.0) {  // then i have contact
+      // todo: move this entire block to a shared an updated "contactJacobian"
+      // method in RigidBodyTree
+      auto JA = tree->transformPointsJacobian(kinsol, xA.col(i), bodyA_idx[i],
+                                              0, false);
+      auto JB = tree->transformPointsJacobian(kinsol, xB.col(i), bodyB_idx[i],
+                                              0, false);
+      Vector3d this_normal = normal.col(i);
 
-        // compute the surface tangent basis
-        Vector3d tangent1;
-        if (1.0 - this_normal(2) < EPSILON) {  // handle the unit-normal case
-                                               // (since it's unit length, just
-                                               // check z)
-          tangent1 << 1.0, 0.0, 0.0;
-        } else if (1 + this_normal(2) < EPSILON) {
-          tangent1 << -1.0, 0.0, 0.0;  // same for the reflected case
-        } else {                       // now the general case
-          tangent1 << this_normal(1), -this_normal(0), 0.0;
-          tangent1 /= sqrt(this_normal(1) * this_normal(1) +
-                           this_normal(0) * this_normal(0));
-        }
-        Vector3d tangent2 = tangent1.cross(this_normal);
-        Matrix3d R;  // rotation into normal coordinates
-        R << tangent1, tangent2, this_normal;
-        auto J = R * (JA - JB);          // J = [ D1; D2; n ]
-        auto relative_velocity = J * v;  // [ tangent1dot; tangent2dot; phidot ]
+      // compute the surface tangent basis
+      Vector3d tangent1;
+      if (1.0 - this_normal(2) < EPSILON) {  // handle the unit-normal case
+                                             // (since it's unit length, just
+                                             // check z)
+        tangent1 << 1.0, 0.0, 0.0;
+      } else if (1 + this_normal(2) < EPSILON) {
+        tangent1 << -1.0, 0.0, 0.0;  // same for the reflected case
+      } else {                       // now the general case
+        tangent1 << this_normal(1), -this_normal(0), 0.0;
+        tangent1 /= sqrt(this_normal(1) * this_normal(1) +
+                         this_normal(0) * this_normal(0));
+      }
+      Vector3d tangent2 = tangent1.cross(this_normal);
+      Matrix3d R;  // rotation into normal coordinates
+      R << tangent1, tangent2, this_normal;
+      auto J = R * (JA - JB);          // J = [ D1; D2; n ]
+      auto relative_velocity = J * v;  // [ tangent1dot; tangent2dot; phidot ]
 
-        {
-          // spring law for normal force:  fA_normal = -k*phi - b*phidot
-          // and damping for tangential force:  fA_tangent = -b*tangentdot
-          // (bounded by the friction cone)
-          Vector3d fA;
-          fA(2) =
-              std::max<double>(-penetration_stiffness * phi(i) -
-                                   penetration_damping * relative_velocity(2),
-                               0.0);
-          fA.head(2) =
-              -std::min<double>(
-                  penetration_damping,
-                  friction_coefficient * fA(2) /
-                      (relative_velocity.head(2).norm() + EPSILON)) *
-              relative_velocity.head(2);  // epsilon to avoid divide by zero
+      {
+        // spring law for normal force:  fA_normal = -k*phi - b*phidot
+        // and damping for tangential force:  fA_tangent = -b*tangentdot
+        // (bounded by the friction cone)
+        Vector3d fA;
+        fA(2) =
+            std::max<double>(-penetration_stiffness * phi(i) -
+                                 penetration_damping * relative_velocity(2),
+                             0.0);
+        fA.head(2) =
+            -std::min<double>(
+                penetration_damping,
+                friction_coefficient * fA(2) /
+                    (relative_velocity.head(2).norm() + EPSILON)) *
+            relative_velocity.head(2);  // epsilon to avoid divide by zero
 
-          // equal and opposite: fB = -fA.
-          // tau = (R*JA)^T fA + (R*JB)^T fB = J^T fA
-          C -= J.transpose() * fA;
-        }
+        // equal and opposite: fB = -fA.
+        // tau = (R*JA)^T fA + (R*JB)^T fB = J^T fA
+        C -= J.transpose() * fA;
       }
     }
   }
@@ -189,14 +183,12 @@ RigidBodySystem::StateVector<double> RigidBodySystem::dynamics(
 
   // add [H,-J^T]*[vdot;f] = -C
   prog.addLinearEqualityConstraint(H_and_neg_JT, -C);
-
   prog.solve();
-  //      prog.printSolution();
 
-  StateVector<double> dot(nq + nv);
+  StateVector<double> dot(num_positions + num_velocities);
   dot << kinsol.transformPositionDotMappingToVelocityMapping(
              Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>::Identity(
-                 nq, nq)) *
+                 num_positions, num_positions)) *
              v,
       vdot.value();
   return dot;
@@ -214,7 +206,7 @@ RigidBodySystem::OutputVector<double> RigidBodySystem::output(const double& t,
 
   y.segment(0, getNumStates()) << x;
   int index=getNumStates();
-  for (const auto& s : sensors) {
+  for (const auto& s : sensors_) {
     y.segment(index, s->getNumOutputs()) = s->output(t, kinsol, u);
     index+=s->getNumOutputs();
   }
@@ -258,22 +250,22 @@ class SingleTimeKinematicConstraintWrapper : public Constraint {
 
 DRAKERBSYSTEM_EXPORT RigidBodySystem::StateVector<double>
 Drake::getInitialState(const RigidBodySystem& sys) {
-  VectorXd x0(sys.tree->num_positions + sys.tree->num_velocities);
+  VectorXd x0(sys.tree_->num_positions() + sys.tree_->num_velocities());
   default_random_engine generator;
   x0 << sys.tree->getRandomConfiguration(generator),
       VectorXd::Random(sys.tree->num_velocities);
 
   // todo: implement joint limits, etc.
 
-  if (sys.tree->getNumPositionConstraints()) {
+  if (sys.tree_->getNumPositionConstraints()) {
     // todo: move this up to the system level?
 
     OptimizationProblem prog;
     std::vector<RigidBodyLoop, Eigen::aligned_allocator<RigidBodyLoop> > const&
-        loops = sys.tree->loops;
+        loops = sys.tree_->loops;
 
-    int nq = sys.tree->num_positions;
-    auto qvar = prog.addContinuousVariables(nq);
+    const int num_positions = sys.tree_->num_positions();
+    auto qvar = prog.addContinuousVariables(num_positions);
 
     Matrix<double, 7, 1> bTbp = Matrix<double, 7, 1>::Zero();
     bTbp(3) = 1.0;
@@ -283,13 +275,13 @@ Drake::getInitialState(const RigidBodySystem& sys) {
     Vector3d zero = Vector3d::Zero();
     for (int i = 0; i < loops.size(); i++) {
       auto con1 = make_shared<RelativePositionConstraint>(
-          sys.tree.get(), zero, zero, zero, loops[i].frameA->frame_index,
+          sys.tree_.get(), zero, zero, zero, loops[i].frameA->frame_index,
           loops[i].frameB->frame_index, bTbp, tspan);
       std::shared_ptr<SingleTimeKinematicConstraintWrapper> con1wrapper(
           new SingleTimeKinematicConstraintWrapper(con1));
       prog.addConstraint(con1wrapper, {qvar});
       auto con2 = make_shared<RelativePositionConstraint>(
-          sys.tree.get(), loops[i].axis, loops[i].axis, loops[i].axis,
+          sys.tree_.get(), loops[i].axis, loops[i].axis, loops[i].axis,
           loops[i].frameA->frame_index, loops[i].frameB->frame_index, bTbp,
           tspan);
       std::shared_ptr<SingleTimeKinematicConstraintWrapper> con2wrapper(
@@ -297,11 +289,12 @@ Drake::getInitialState(const RigidBodySystem& sys) {
       prog.addConstraint(con2wrapper, {qvar});
     }
 
-    VectorXd q_guess = x0.topRows(nq);
-    prog.addQuadraticCost(MatrixXd::Identity(nq, nq), q_guess);
+    VectorXd q_guess = x0.topRows(num_positions);
+    prog.addQuadraticCost(MatrixXd::Identity(num_positions, num_positions),
+    		              q_guess);
     prog.solve();
 
-    x0 << qvar.value(), VectorXd::Zero(sys.tree->num_velocities);
+    x0 << qvar.value(), VectorXd::Zero(sys.tree_->num_velocities);
   }
   return x0;
 }
@@ -676,7 +669,7 @@ void RigidBodySystem::addRobotFromURDFString(
     const string& xml_string, const string& root_dir,
     const DrakeJoint::FloatingBaseType floating_base_type) {
   // first add the urdf to the rigid body tree
-  tree->addRobotFromURDFString(xml_string, root_dir, floating_base_type);
+  tree_->addRobotFromURDFString(xml_string, root_dir, floating_base_type);
 
   // now parse additional tags understood by rigid body system (actuators,
   // sensors, etc)
@@ -690,7 +683,7 @@ void RigidBodySystem::addRobotFromURDF(
     const string& urdf_filename,
     const DrakeJoint::FloatingBaseType floating_base_type) {
   // first add the urdf to the rigid body tree
-  tree->addRobotFromURDF(urdf_filename, floating_base_type);
+  tree_->addRobotFromURDF(urdf_filename, floating_base_type);
 
   // now parse additional tags understood by rigid body system (actuators,
   // sensors, etc)
@@ -706,7 +699,7 @@ void RigidBodySystem::addRobotFromURDF(
 void RigidBodySystem::addRobotFromSDF(
     const string& sdf_filename,
     const DrakeJoint::FloatingBaseType floating_base_type) {
-  tree->addRobotFromSDF(sdf_filename, floating_base_type);
+  tree_->addRobotFromSDF(sdf_filename, floating_base_type);
 
   // now parse additional tags understood by rigid body system (actuators,
   // sensors, etc)

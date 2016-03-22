@@ -179,13 +179,7 @@ void parseSDFCollision(shared_ptr<RigidBody> body, XMLElement* node,
     poseValueToTransform(pose, pose_map, transform_to_model,
                          transform_parent_to_model);
 
-  /*
-    const char* attr = node->Attribute("name");
-    if (!attr) throw runtime_error("ERROR: visual tag is missing name
-    attribute");
-    string name(attr);
-  */
-  string group_name("default");
+  const string group_name("default");
 
   XMLElement* geometry_node = node->FirstChildElement("geometry");
   if (!geometry_node)

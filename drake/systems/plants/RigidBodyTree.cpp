@@ -44,7 +44,8 @@ RigidBodyTree::RigidBodyTree(
     const std::string& urdf_filename,
     const DrakeJoint::FloatingBaseType floating_base_type)
     : collision_model(DrakeCollision::newModel()) {
-  a_grav << 0, 0, 0, 0, 0, -9.81;
+  a_grav << 0, 0, 0, 0, 0, 0;
+  printf("gravity is zero!!");
 
   shared_ptr<RigidBody> b(new RigidBody());
   b->linkname = "world";
@@ -59,7 +60,8 @@ RigidBodyTree::RigidBodyTree(
 
 RigidBodyTree::RigidBodyTree(void)
     : collision_model(DrakeCollision::newModel()) {
-  a_grav << 0, 0, 0, 0, 0, -9.81;
+  a_grav << 0, 0, 0, 0, 0, 0;
+  printf("gravity is zero!!");
 
   shared_ptr<RigidBody> b(new RigidBody());
   b->linkname = "world";
@@ -119,15 +121,15 @@ void RigidBodyTree::compile(void) {
     }
   }
 
-  num_positions = 0;
-  num_velocities = 0;
+  num_positions_ = 0;
+  num_velocities_ = 0;
   for (auto it = bodies.begin(); it != bodies.end(); ++it) {
     RigidBody& body = **it;
     if (body.hasParent()) {
-      body.position_num_start = num_positions;
-      num_positions += body.getJoint().getNumPositions();
-      body.velocity_num_start = num_velocities;
-      num_velocities += body.getJoint().getNumVelocities();
+      body.position_num_start = num_positions_;
+      num_positions_ += body.getJoint().getNumPositions();
+      body.velocity_num_start = num_velocities_;
+      num_velocities_ += body.getJoint().getNumVelocities();
     } else {
       body.position_num_start = 0;
       body.velocity_num_start = 0;
@@ -138,8 +140,8 @@ void RigidBodyTree::compile(void) {
     bodies[i]->body_index = static_cast<int>(i);
   }
 
-  B.resize(num_velocities, actuators.size());
-  B = MatrixXd::Zero(num_velocities, actuators.size());
+  B.resize(num_velocities_, actuators.size());
+  B = MatrixXd::Zero(num_velocities_, actuators.size());
   for (size_t ia = 0; ia < actuators.size(); ia++)
     for (int i = 0; i < actuators[ia].body->getJoint().getNumVelocities(); i++)
       B(actuators[ia].body->velocity_num_start + i, ia) =
@@ -147,8 +149,8 @@ void RigidBodyTree::compile(void) {
 
   // gather joint limits in RBM vector
   joint_limit_min = VectorXd::Constant(
-      num_positions, -std::numeric_limits<double>::infinity());
-  joint_limit_max = VectorXd::Constant(num_positions,
+      num_positions_, -std::numeric_limits<double>::infinity());
+  joint_limit_max = VectorXd::Constant(num_positions_,
                                        std::numeric_limits<double>::infinity());
   for (int i = 0; i < bodies.size(); i++) {
     auto& body = bodies[i];
@@ -174,7 +176,7 @@ void RigidBodyTree::compile(void) {
 }
 
 Eigen::VectorXd RigidBodyTree::getZeroConfiguration() const {
-  Eigen::VectorXd q(num_positions);
+  Eigen::VectorXd q(num_positions_);
   for (const auto& body_ptr : bodies) {
     if (body_ptr->hasParent()) {
       const DrakeJoint& joint = body_ptr->getJoint();
@@ -187,7 +189,7 @@ Eigen::VectorXd RigidBodyTree::getZeroConfiguration() const {
 
 Eigen::VectorXd RigidBodyTree::getRandomConfiguration(
     std::default_random_engine& generator) const {
-  Eigen::VectorXd q(num_positions);
+  Eigen::VectorXd q(num_positions_);
   for (const auto& body_ptr : bodies) {
     if (body_ptr->hasParent()) {
       const DrakeJoint& joint = body_ptr->getJoint();
@@ -199,7 +201,7 @@ Eigen::VectorXd RigidBodyTree::getRandomConfiguration(
 }
 
 string RigidBodyTree::getPositionName(int position_num) const {
-  if (position_num < 0 || position_num >= num_positions)
+  if (position_num < 0 || position_num >= num_positions_)
     throw std::runtime_error("position_num is out of range");
 
   size_t body_index = 0;
@@ -212,7 +214,7 @@ string RigidBodyTree::getPositionName(int position_num) const {
 }
 
 string RigidBodyTree::getVelocityName(int velocity_num) const {
-  if (velocity_num < 0 || velocity_num >= num_velocities)
+  if (velocity_num < 0 || velocity_num >= num_velocities_)
     throw std::runtime_error("velocity_num is out of range");
 
   size_t body_index = 0;
@@ -225,10 +227,10 @@ string RigidBodyTree::getVelocityName(int velocity_num) const {
 }
 
 string RigidBodyTree::getStateName(int state_num) const {
-  if (state_num < num_positions)
+  if (state_num < num_positions_)
     return getPositionName(state_num);
   else
-    return getVelocityName(state_num - num_positions);
+    return getVelocityName(state_num - num_positions_);
 }
 
 void RigidBodyTree::drawKinematicTree(std::string graphviz_dotfile_filename) {
@@ -281,7 +283,7 @@ void RigidBodyTree::drawKinematicTree(std::string graphviz_dotfile_filename) {
 map<string, int> RigidBodyTree::computePositionNameToIndexMap() const {
   map<string, int> name_to_index_map;
 
-  for (int i = 0; i < this->num_positions; ++i) {
+  for (int i = 0; i < this->num_positions_; ++i) {
     name_to_index_map[getPositionName(i)] = i;
   }
   return name_to_index_map;
@@ -405,49 +407,32 @@ bool RigidBodyTree::collisionDetect(
   updateDynamicCollisionElements(cache);
 
   vector<DrakeCollision::PointPair> points;
-  // DEBUG
-  // cout << "RigidBodyTree::collisionDetect: calling
-  // collision_model->closestPointsAllToAll" << endl;
-  // END_DEBUG
-  bool points_found =
+  const bool points_found =
       collision_model->closestPointsAllToAll(ids_to_check, use_margins, points);
-  // DEBUG
-  // cout << "RigidBodyTree::collisionDetect: points.size() = " << points.size()
-  // << endl;
-  // END_DEBUG
 
   xA = MatrixXd::Zero(3, points.size());
   xB = MatrixXd::Zero(3, points.size());
   normal = MatrixXd::Zero(3, points.size());
   phi = VectorXd::Zero(points.size());
 
-  Vector3d ptA, ptB, n;
-  double distance;
   for (int i = 0; i < points.size(); ++i) {
-    points[i].getResults(ptA, ptB, n, distance);
+    const DrakeCollision::PointPair& point = points[i];
+    Vector3d ptA, ptB, n;
+    double distance;
+    point.getResults(ptA, ptB, n, distance);
     xA.col(i) = ptA;
     xB.col(i) = ptB;
     normal.col(i) = n;
     phi[i] = distance;
+
     const RigidBody::CollisionElement* elementA =
         dynamic_cast<const RigidBody::CollisionElement*>(
-            collision_model->readElement(points[i].getIdA()));
-    // DEBUG
-    // cout << "RigidBodyTree::collisionDetect: points[i].getIdA() = " <<
-    // points[i].getIdA() << endl;
-    // cout << "RigidBodyTree::collisionDetect:
-    // collision_model->readElement(points[i].getIdA()) = " <<
-    // collision_model->readElement(points[i].getIdA()) << endl;
-    // cout << "RigidBodyTree::collisionDetect:
-    // collision_model->readElement(points[i].getIdA())->getId() = " <<
-    // collision_model->readElement(points[i].getIdA())->getId() << endl;
-    // cout << "RigidBodyTree::collisionDetect: elementA = " << elementA <<
-    // endl;
-    // END_DEBUG
+            collision_model->readElement(point.getIdA()));
     bodyA_idx.push_back(elementA->getBody()->body_index);
+
     const RigidBody::CollisionElement* elementB =
         dynamic_cast<const RigidBody::CollisionElement*>(
-            collision_model->readElement(points[i].getIdB()));
+            collision_model->readElement(point.getIdB()));
     bodyB_idx.push_back(elementB->getBody()->body_index);
   }
   return points_found;
@@ -459,13 +444,11 @@ bool RigidBodyTree::collisionDetect(
     vector<int>& bodyB_idx, const vector<int>& bodies_idx,
     const set<string>& active_element_groups, bool use_margins) {
   vector<DrakeCollision::ElementId> ids_to_check;
-  for (auto body_idx_iter = bodies_idx.begin();
-       body_idx_iter != bodies_idx.end(); ++body_idx_iter) {
-    if (*body_idx_iter >= 0 && *body_idx_iter < bodies.size()) {
-      for (auto group_iter = active_element_groups.begin();
-           group_iter != active_element_groups.end(); ++group_iter) {
-        bodies[*body_idx_iter]->appendCollisionElementIdsFromThisBody(
-            *group_iter, ids_to_check);
+  for (const int body_idx : bodies_idx) {
+    if (body_idx >= 0 && body_idx < bodies.size()) {
+      for (const string& group : active_element_groups) {
+        bodies[body_idx]->appendCollisionElementIdsFromThisBody(group,
+        		                                                    ids_to_check);
       }
     }
   }
@@ -478,11 +461,9 @@ bool RigidBodyTree::collisionDetect(
     Matrix3Xd& xA, Matrix3Xd& xB, vector<int>& bodyA_idx,
     vector<int>& bodyB_idx, const vector<int>& bodies_idx, bool use_margins) {
   vector<DrakeCollision::ElementId> ids_to_check;
-  for (auto body_idx_iter = bodies_idx.begin();
-       body_idx_iter != bodies_idx.end(); ++body_idx_iter) {
-    if (*body_idx_iter >= 0 && *body_idx_iter < bodies.size()) {
-      bodies[*body_idx_iter]->appendCollisionElementIdsFromThisBody(
-          ids_to_check);
+  for (const int body_idx : bodies_idx) {
+    if (body_idx >= 0 && body_idx < bodies.size()) {
+      bodies[body_idx]->appendCollisionElementIdsFromThisBody(ids_to_check);
     }
   }
   return collisionDetect(cache, phi, normal, xA, xB, bodyA_idx, bodyB_idx,
@@ -497,12 +478,9 @@ bool RigidBodyTree::collisionDetect(const KinematicsCache<double>& cache,
                                     const set<string>& active_element_groups,
                                     bool use_margins) {
   vector<DrakeCollision::ElementId> ids_to_check;
-  for (auto body_iter = bodies.begin(); body_iter != bodies.end();
-       ++body_iter) {
-    for (auto group_iter = active_element_groups.begin();
-         group_iter != active_element_groups.end(); ++group_iter) {
-      (*body_iter)
-          ->appendCollisionElementIdsFromThisBody(*group_iter, ids_to_check);
+  for (auto body : bodies) {
+    for (const string& group : active_element_groups) {
+      body->appendCollisionElementIdsFromThisBody(group, ids_to_check);
     }
   }
   return collisionDetect(cache, phi, normal, xA, xB, bodyA_idx, bodyB_idx,
@@ -515,9 +493,8 @@ bool RigidBodyTree::collisionDetect(const KinematicsCache<double>& cache,
                                     vector<int>& bodyA_idx,
                                     vector<int>& bodyB_idx, bool use_margins) {
   vector<DrakeCollision::ElementId> ids_to_check;
-  for (auto body_iter = bodies.begin(); body_iter != bodies.end();
-       ++body_iter) {
-    (*body_iter)->appendCollisionElementIdsFromThisBody(ids_to_check);
+  for (auto body : bodies) {
+    body->appendCollisionElementIdsFromThisBody(ids_to_check);
   }
   return collisionDetect(cache, phi, normal, xA, xB, bodyA_idx, bodyB_idx,
                          ids_to_check, use_margins);
@@ -609,29 +586,6 @@ bool RigidBodyTree::allCollisions(const KinematicsCache<double>& cache,
   return points_found;
 }
 
-void RigidBodyTree::warnOnce(const string& id, const string& msg) {
-  auto print_warning_iter = already_printed_warnings.find(id);
-  if (print_warning_iter == already_printed_warnings.end()) {
-    cout << msg << endl;
-    already_printed_warnings.insert(id);
-  }
-}
-
-// bool RigidBodyTree::closestDistanceAllBodies(VectorXd& distance,
-// MatrixXd& Jd)
-//{
-// MatrixXd ptsA, ptsB, normal, JA, JB;
-// vector<int> bodyA_idx, bodyB_idx;
-// bool return_val =
-// closestPointsAllBodies(bodyA_idx, bodyB_idx, ptsA, ptsB, normal, distance,
-// JA, JB, Jd);
-// DEBUG
-// cout << "RigidBodyTree::closestDistanceAllBodies: distance.size() = " <<
-// distance.size() << endl;
-// END_DEBUG
-// return return_val;
-//};
-
 template <typename Scalar>
 void RigidBodyTree::updateCompositeRigidBodyInertias(
     KinematicsCache<Scalar>& cache) const {
@@ -664,8 +618,8 @@ Matrix<Scalar, TWIST_SIZE, Eigen::Dynamic> RigidBodyTree::worldMomentumMatrix(
   cache.checkCachedKinematicsSettings(false, false, "worldMomentumMatrix");
   updateCompositeRigidBodyInertias(cache);
 
-  int nq = num_positions;
-  int nv = num_velocities;
+  int nq = num_positions_;
+  int nv = num_velocities_;
   int ncols = in_terms_of_qdot ? nq : nv;
   Matrix<Scalar, TWIST_SIZE, Eigen::Dynamic> ret(TWIST_SIZE, ncols);
   ret.setZero();
@@ -910,8 +864,8 @@ void RigidBodyTree::getContactPositionsJac(
       bi = *iter++;
     nc = static_cast<int>(bodies[bi]->contact_pts.cols());
     if (nc > 0) {
-      p.resize(3 * nc, num_positions);
-      J.block(3 * n, 0, 3 * nc, num_positions) =
+      p.resize(3 * nc, num_positions_);
+      J.block(3 * n, 0, 3 * nc, num_positions_) =
           forwardKinJacobian(cache, bodies[bi]->contact_pts, bi, 0, 0, true, 0);
       n += nc;
     }
@@ -1184,7 +1138,7 @@ Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> RigidBodyTree::massMatrix(
     KinematicsCache<Scalar>& cache) const {
   cache.checkCachedKinematicsSettings(false, false, "massMatrix");
 
-  int nv = num_velocities;
+  int nv = num_velocities_;
   Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> ret(nv, nv);
   ret.setZero();
 
@@ -1227,7 +1181,7 @@ Matrix<Scalar, Eigen::Dynamic, 1> RigidBodyTree::dynamicsBiasTerm(
     const eigen_aligned_unordered_map<RigidBody const*,
                                       Matrix<Scalar, TWIST_SIZE, 1>>& f_ext,
     bool include_velocity_terms) const {
-  Matrix<Scalar, Eigen::Dynamic, 1> vd(num_velocities, 1);
+  Matrix<Scalar, Eigen::Dynamic, 1> vd(num_velocities_, 1);
   vd.setZero();
   return inverseDynamics(cache, f_ext, vd, include_velocity_terms);
 };
@@ -1281,7 +1235,7 @@ Matrix<Scalar, Eigen::Dynamic, 1> RigidBodyTree::inverseDynamics(
     }
   }
 
-  Matrix<Scalar, Eigen::Dynamic, 1> ret(num_velocities, 1);
+  Matrix<Scalar, Eigen::Dynamic, 1> ret(num_velocities_, 1);
 
   for (int i = static_cast<int>(bodies.size()) - 1; i >= 0; i--) {
     RigidBody& body = *bodies[i];
@@ -1309,7 +1263,7 @@ template <typename DerivedV>
 Matrix<typename DerivedV::Scalar, Dynamic, 1> RigidBodyTree::frictionTorques(
     Eigen::MatrixBase<DerivedV> const& v) const {
   typedef typename DerivedV::Scalar Scalar;
-  Matrix<Scalar, Dynamic, 1> ret(num_velocities, 1);
+  Matrix<Scalar, Dynamic, 1> ret(num_velocities_, 1);
 
   for (auto it = bodies.begin(); it != bodies.end(); ++it) {
     RigidBody& body = **it;
@@ -1331,7 +1285,7 @@ RigidBodyTree::transformPointsJacobian(
     const KinematicsCache<Scalar>& cache,
     const Eigen::MatrixBase<DerivedPoints>& points, int from_body_or_frame_ind,
     int to_body_or_frame_ind, bool in_terms_of_qdot) const {
-  int cols = in_terms_of_qdot ? num_positions : num_velocities;
+  int cols = in_terms_of_qdot ? num_positions_ : num_velocities_;
   int npoints = static_cast<int>(points.cols());
 
   auto points_base = transformPoints(cache, points, from_body_or_frame_ind,
@@ -1761,7 +1715,7 @@ Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>
 RigidBodyTree::positionConstraintsJacobian(const KinematicsCache<Scalar>& cache,
                                            bool in_terms_of_qdot) const {
   Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> ret(
-      6 * loops.size(), in_terms_of_qdot ? num_positions : num_velocities);
+      6 * loops.size(), in_terms_of_qdot ? num_positions_ : num_velocities_);
 
   for (size_t i = 0; i < loops.size(); i++) {
     // position constraint
@@ -1809,7 +1763,7 @@ void RigidBodyTree::jointLimitConstraints(MatrixBase<DerivedA> const& q,
   const size_t numFiniteMax = finite_max_index.size();
 
   phi = VectorXd::Zero(numFiniteMin + numFiniteMax);
-  J = MatrixXd::Zero(phi.size(), num_positions);
+  J = MatrixXd::Zero(phi.size(), num_positions_);
   for (int i = 0; i < numFiniteMin; i++) {
     const int fi = finite_min_index[i];
     phi[i] = q[fi] - joint_limit_min[fi];

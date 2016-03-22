@@ -1,5 +1,5 @@
-#ifndef DRAKE_RIGIDBODYTREE_H
-#define DRAKE_RIGIDBODYTREE_H
+#ifndef DRAKE_SYSTEMS_PLANTS_RIGIDBODYTREE_H_
+#define DRAKE_SYSTEMS_PLANTS_RIGIDBODYTREE_H_
 
 #include <Eigen/Dense>
 #include <Eigen/LU>
@@ -56,7 +56,6 @@ class DRAKERBM_EXPORT RigidBodyLoop {
 
   friend std::ostream& operator<<(std::ostream& os, const RigidBodyLoop& obj);
 
- public:
 #ifndef SWIG
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 #endif
@@ -623,7 +622,6 @@ class DRAKERBM_EXPORT RigidBodyTree {
                            std::vector<int>& bodyA_idx,
                            std::vector<int>& bodyB_idx,
                            bool use_margins = true);
-  // bool closestDistanceAllBodies(VectorXd& distance, MatrixXd& Jd);
 
   virtual bool collidingPointsCheckOnly(
       const KinematicsCache<double>& cache,
@@ -632,8 +630,6 @@ class DRAKERBM_EXPORT RigidBodyTree {
   virtual std::vector<size_t> collidingPoints(
       const KinematicsCache<double>& cache,
       const std::vector<Eigen::Vector3d>& points, double collision_threshold);
-
-  void warnOnce(const std::string& id, const std::string& msg);
 
   std::shared_ptr<RigidBody> findLink(std::string linkname, int robot) const;
   std::shared_ptr<RigidBody> findLink(std::string linkname,
@@ -672,14 +668,6 @@ class DRAKERBM_EXPORT RigidBodyTree {
 
   size_t getNumPositionConstraints() const;
 
-  /*
-  template <typename Derived>
-  Eigen::Matrix<typename Derived::Scalar, Derived::RowsAtCompileTime,
-  Eigen::Dynamic> transformPositionDotMappingToVelocityMapping(
-      const KinematicsCache<typename Derived::Scalar>& cache, const
-  Eigen::MatrixBase<Derived>& mat) const;
-  */
-
   template <typename Derived>
   Eigen::Matrix<typename Derived::Scalar, Derived::RowsAtCompileTime,
                 Eigen::Dynamic>
@@ -692,7 +680,7 @@ class DRAKERBM_EXPORT RigidBodyTree {
      * reconstruct the full Jacobian on all joints, then we should call this
      * method.
      */
-    int ncols = in_terms_of_qdot ? num_positions : num_velocities;
+    int ncols = in_terms_of_qdot ? num_positions() : num_velocities();
     Eigen::Matrix<typename Derived::Scalar, Derived::RowsAtCompileTime,
                   Eigen::Dynamic> full(compact.rows(), ncols);
     full.setZero();
@@ -711,24 +699,25 @@ class DRAKERBM_EXPORT RigidBodyTree {
     return full;
   };
 
- public:
+  int num_positions() const { return num_positions_; }
+  int num_velocities() const { return num_velocities_; }
+  int num_actuators() const { return actuators.size(); }
+
+  // The following legacy public data members violate the style guide.  Do not
+  // add new references outside RigidBodyTree!  Instead, add an accessor.
   static const std::set<int> default_robot_num_set;
-
   std::vector<std::string> robot_name;
-
-  int num_positions;
-  int num_velocities;
   Eigen::VectorXd joint_limit_min;
   Eigen::VectorXd joint_limit_max;
 
   // Rigid body objects
-  std::vector<std::shared_ptr<RigidBody> > bodies;
+  std::vector<std::shared_ptr<RigidBody>> bodies;
 
   // Rigid body frames
   std::vector<std::shared_ptr<RigidBodyFrame> > frames;
 
   // Rigid body actuators
-  std::vector<RigidBodyActuator, Eigen::aligned_allocator<RigidBodyActuator> >
+  std::vector<RigidBodyActuator, Eigen::aligned_allocator<RigidBodyActuator>>
       actuators;
 
   // Rigid body loops
@@ -736,6 +725,10 @@ class DRAKERBM_EXPORT RigidBodyTree {
 
   Eigen::Matrix<double, TWIST_SIZE, 1> a_grav;
   Eigen::MatrixXd B;  // the B matrix maps inputs into joint-space forces
+
+#ifndef SWIG
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+#endif
 
  private:
   // helper functions for contactConstraints
@@ -750,6 +743,8 @@ class DRAKERBM_EXPORT RigidBodyTree {
   void updateCompositeRigidBodyInertias(KinematicsCache<Scalar>& cache) const;
 
   bool initialized;
+  int num_positions_ = 0;
+  int num_velocities_ = 0;
 
   // collision_model and collision_model_no_margins both maintain
   // a collection of the collision geometry in the RBM for use in
@@ -762,20 +757,12 @@ class DRAKERBM_EXPORT RigidBodyTree {
   // These models are switched between with the use_margins flag
   // to collision-relevant methods of the RBM.
   std::unique_ptr<DrakeCollision::Model> collision_model;
-  // std::shared_ptr< DrakeCollision::Model > collision_model_no_margins;
- public:
-#ifndef SWIG
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-#endif
 
   // The following was required for building w/ DRAKERBM_EXPORT on windows (due
   // to the unique_ptrs).  See
   // http://stackoverflow.com/questions/8716824/cannot-access-private-member-error-only-when-class-has-export-linkage
- private:
   RigidBodyTree(const RigidBodyTree&);
   RigidBodyTree& operator=(const RigidBodyTree&) { return *this; }
-
-  std::set<std::string> already_printed_warnings;
 };
 
-#endif
+#endif  // DRAKE_SYSTEMS_PLANTS_RIGIDBODYTREE_H_

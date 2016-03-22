@@ -1,5 +1,5 @@
-#ifndef _RIGIDBODY
-#define _RIGIDBODY
+#ifndef DRAKE_SYSTEMS_PLANTS_RIGIDBODY_H_
+#define DRAKE_SYSTEMS_PLANTS_RIGIDBODY_H_
 
 #include <Eigen/Dense>
 #include <iostream>
@@ -12,11 +12,6 @@
 #include "drake/drakeRBM_export.h"
 
 class DRAKERBM_EXPORT RigidBody {
- private:
-  std::unique_ptr<DrakeJoint> joint;
-  DrakeCollision::bitmask collision_filter_group;
-  DrakeCollision::bitmask collision_filter_ignores;
-
  public:
   RigidBody();
 
@@ -77,7 +72,9 @@ class DRAKERBM_EXPORT RigidBody {
   bool appendCollisionElementIdsFromThisBody(
       std::vector<DrakeCollision::ElementId>& ids) const;
 
- public:
+
+  // The following legacy public data members violate the style guide.  Do not
+  // add new references outside RigidBodySystem!  Instead, add an accessor.
   std::string linkname;
   std::string model_name;  // todo: replace robotnum w/ model_name
   int robotnum;            // uses 0-index. starts from 0
@@ -120,19 +117,22 @@ class DRAKERBM_EXPORT RigidBody {
 
     virtual bool collidesWith(const DrakeCollision::Element* other) const;
 
-   protected:
-    std::shared_ptr<RigidBody> body;
-
-   public:
 #ifndef SWIG
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 #endif
+
+   protected:
+    std::shared_ptr<RigidBody> body;
   };
 
- public:
 #ifndef SWIG
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 #endif
+
+ private:
+  std::unique_ptr<DrakeJoint> joint;
+  DrakeCollision::bitmask collision_filter_group;
+  DrakeCollision::bitmask collision_filter_ignores;
 };
 
-#endif
+#endif  // DRAKE_SYSTEMS_PLANTS_RIGIDBODY_H_
