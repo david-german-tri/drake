@@ -78,12 +78,11 @@ int main(int argc, char* argv[]) {
   // be reused
   DrakeJoint::FloatingBaseType floating_base_type = DrakeJoint::QUATERNION;
 
-
   auto rigid_body_sys = make_shared<RigidBodySystem>();
   rigid_body_sys->addRobotFromFile(argv[1], floating_base_type);
-  auto const & tree = rigid_body_sys->getRigidBodyTree();
-  for (int i=2; i<argc; i++) {
-	printf("loading environment: %s\n", argv[i]);
+  auto const& tree = rigid_body_sys->getRigidBodyTree();
+  for (int i = 2; i < argc; i++) {
+    printf("loading environment: %s\n", argv[i]);
     tree->addRobotFromSDF(argv[i], DrakeJoint::FIXED);  // add environment
   }
 
@@ -131,10 +130,10 @@ int main(int argc, char* argv[]) {
                          8) == 0) {  // intentionally match all throttle_ inputs
         auto const& b = tree->actuators[actuator_idx].body;
         Kd(actuator_idx, b->velocity_num_start) = kThrottle;  // throttle
-        map_driving_cmd_to_x_d(tree->num_positions() + b->velocity_num_start, 1) =
-            20;  // throttle (velocity) command
-        map_driving_cmd_to_x_d(tree->num_positions() + b->velocity_num_start, 2) =
-            -20;  // braking (velocity) command
+        map_driving_cmd_to_x_d(tree->num_positions() + b->velocity_num_start,
+                               1) = 20;  // throttle (velocity) command
+        map_driving_cmd_to_x_d(tree->num_positions() + b->velocity_num_start,
+                               2) = -20;  // braking (velocity) command
       }
     }
   }

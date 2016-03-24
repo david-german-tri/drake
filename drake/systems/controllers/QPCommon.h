@@ -90,8 +90,8 @@ struct Bounds {
 
 struct JointSoftLimitParams {
   JointSoftLimitParams(const RigidBodyTree& robot)
-      : enabled(
-            Eigen::Matrix<bool, Eigen::Dynamic, 1>::Zero(robot.num_positions())),
+      : enabled(Eigen::Matrix<bool, Eigen::Dynamic, 1>::Zero(
+            robot.num_positions())),
         disable_when_body_in_support(
             Eigen::VectorXi::Zero(robot.num_positions())),
         lb(Eigen::VectorXd::Zero(robot.num_positions())),

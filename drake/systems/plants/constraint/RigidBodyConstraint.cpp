@@ -1482,7 +1482,8 @@ void Point2PointDistanceConstraint::eval(const double *t,
       dposA = robot->transformPointsJacobian(cache, ptA, bodyA, 0, true);
     } else {
       posA = this->ptA.block(0, 0, 3, this->ptA.cols());
-      dposA = MatrixXd::Zero(3 * this->ptA.cols(), this->robot->num_positions());
+      dposA =
+          MatrixXd::Zero(3 * this->ptA.cols(), this->robot->num_positions());
     }
     MatrixXd posB(3, this->ptB.cols());
     MatrixXd dposB(3 * this->ptB.cols(), this->robot->num_positions());
@@ -1491,7 +1492,8 @@ void Point2PointDistanceConstraint::eval(const double *t,
       dposB = robot->transformPointsJacobian(cache, ptB, bodyB, 0, true);
     } else {
       posB = this->ptB.block(0, 0, 3, this->ptB.cols());
-      dposB = MatrixXd::Zero(3 * this->ptB.cols(), this->robot->num_positions());
+      dposB =
+          MatrixXd::Zero(3 * this->ptB.cols(), this->robot->num_positions());
     }
     MatrixXd d = posA - posB;
     MatrixXd dd = dposA - dposB;

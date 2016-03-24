@@ -72,7 +72,6 @@ class DRAKERBM_EXPORT RigidBody {
   bool appendCollisionElementIdsFromThisBody(
       std::vector<DrakeCollision::ElementId>& ids) const;
 
-
   // The following legacy public data members violate the style guide.  Do not
   // add new references outside RigidBodySystem!  Instead, add an accessor.
   std::string linkname;

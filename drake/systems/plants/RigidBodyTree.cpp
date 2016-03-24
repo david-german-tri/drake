@@ -290,8 +290,8 @@ map<string, int> RigidBodyTree::computePositionNameToIndexMap() const {
 }
 
 DrakeCollision::ElementId RigidBodyTree::addCollisionElement(
-    const RigidBody::CollisionElement& element,
-    RigidBody& body, const string& group_name) {
+    const RigidBody::CollisionElement& element, RigidBody& body,
+    const string& group_name) {
   DrakeCollision::ElementId id = collision_model->addElement(element);
   if (id != 0) {
     body.collision_element_ids.push_back(id);
@@ -448,7 +448,7 @@ bool RigidBodyTree::collisionDetect(
     if (body_idx >= 0 && body_idx < bodies.size()) {
       for (const string& group : active_element_groups) {
         bodies[body_idx]->appendCollisionElementIdsFromThisBody(group,
-        		                                                    ids_to_check);
+                                                                ids_to_check);
       }
     }
   }
