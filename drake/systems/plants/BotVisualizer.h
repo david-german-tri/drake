@@ -148,7 +148,6 @@ class BotVisualizer {
 
   OutputVector<double> output(const double &t, const StateVector<double> &x,
                               const InputVector<double> &u) const {
-    printf("Drawing at time: %g\n", t);
     draw_msg.timestamp = static_cast<int64_t>(t * 1000.0);
 
     auto uvec = toEigen(u);

@@ -5,7 +5,6 @@
 #include "drake/systems/plants/RigidBodySystem.h"
 #include "drake/util/drakeAppUtil.h"
 #include "lcmtypes/drake/lcmt_driving_control_cmd_t.hpp"
-#include "valgrind/callgrind.h"
 
 using namespace std;
 using namespace Eigen;
@@ -166,10 +165,6 @@ int main(int argc, char* argv[]) {
   // initially as the ackerman constraint (hopefully) gets enforced by the
   // stabilization terms.
 
-  CALLGRIND_START_INSTRUMENTATION;
   runLCM(sys, lcm, 0, 0.01, x0, options);
-  CALLGRIND_STOP_INSTRUMENTATION;
-  //  simulate(*sys, 0, std::numeric_limits<double>::infinity(), x0, options);
-
   return 0;
 }
