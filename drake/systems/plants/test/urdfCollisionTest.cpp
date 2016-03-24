@@ -21,8 +21,8 @@ int main(int argc, char* argv[]) {
   Eigen::VectorXd q = model->getZeroConfiguration();
   int i;
 
-  if (argc >= 2 + model->num_positions) {
-    for (i = 0; i < model->num_positions; i++)
+  if (argc >= 2 + model->num_positions()) {
+    for (i = 0; i < model->num_positions(); i++)
       sscanf(argv[2 + i], "%lf", &q(i));
   }
 

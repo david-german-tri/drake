@@ -270,7 +270,7 @@ Eigen::VectorXd spatialForceInFrameToJointTorque(
   std::vector<int> v_indices;
   auto J = tree->geometricJacobian(rigid_body_state, 0, frame->frame_index, 0,
                                    false, &v_indices);
-  Eigen::VectorXd tau = Eigen::VectorXd::Zero(tree_->num_velocities());
+  Eigen::VectorXd tau = Eigen::VectorXd::Zero(tree->num_velocities());
   for (int i = 0; i < v_indices.size(); i++) {
     tau(v_indices[i]) = J.col(i).dot(force_in_world);
   }

@@ -152,7 +152,7 @@ class BotVisualizer {
     draw_msg.timestamp = static_cast<int64_t>(t * 1000.0);
 
     auto uvec = toEigen(u);
-    auto q = uvec.head(tree->num_positions);
+    auto q = uvec.head(tree->num_positions());
     KinematicsCache<double> cache = tree->doKinematics(q);
 
     int i, j;

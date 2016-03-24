@@ -142,7 +142,7 @@ int main() {
 
   default_random_engine generator;
   VectorXd q = model->getRandomConfiguration(generator);
-  VectorXd v = VectorXd::Random(model->num_velocities);
+  VectorXd v = VectorXd::Random(model->num_velocities());
 
   // check before calling doKinematics
   {

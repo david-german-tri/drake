@@ -12,7 +12,7 @@ using namespace Drake;
 using namespace tinyxml2;
 
 size_t RigidBodySystem::getNumInputs(void) const {
-  size_t num = tree->actuators.size();
+  size_t num = tree_->actuators.size();
   for (auto const& f : force_elements_) {
     num += f->getNumInputs();
   }
@@ -30,7 +30,7 @@ size_t RigidBodySystem::getNumOutputs() const {
 
 void RigidBodySystem::addSensor(std::shared_ptr<RigidBodySensor> s) {
   if (s->isDirectFeedthrough()) {
-    direct_feedthrough = true;
+    direct_feedthrough_ = true;
   }
   sensors_.push_back(s);
 }
@@ -42,12 +42,12 @@ RigidBodySystem::StateVector<double> RigidBodySystem::dynamics(
 
   // todo: make kinematics cache once and re-use it (but have to make one per
   // type)
-  const int num_positions = tree->num_positions();
-  const int num_velocities = tree->num_velocities();
-  const int num_actuators = tree->num_actuators();
+  const int num_positions = tree_->num_positions();
+  const int num_velocities = tree_->num_velocities();
+  const int num_actuators = tree_->num_actuators();
   auto q = x.topRows(num_positions);
   auto v = x.bottomRows(num_velocities);
-  auto kinsol = tree->doKinematics(q, v);
+  auto kinsol = tree_->doKinematics(q, v);
 
   // todo: preallocate the optimization problem and constraints, and simply
   // update them then solve on each function eval.
@@ -57,11 +57,11 @@ RigidBodySystem::StateVector<double> RigidBodySystem::dynamics(
   OptimizationProblem prog;
   auto const& vdot = prog.addContinuousVariables(num_velocities, "vdot");
 
-  auto H = tree->massMatrix(kinsol);
+  auto H = tree_->massMatrix(kinsol);
   Eigen::MatrixXd H_and_neg_JT = H;
 
-  VectorXd C = tree->dynamicsBiasTerm(kinsol, f_ext);
-  if (num_actuators > 0) C -= tree->B * u.topRows(num_actuators);
+  VectorXd C = tree_->dynamicsBiasTerm(kinsol, f_ext);
+  if (num_actuators > 0) C -= tree_->B * u.topRows(num_actuators);
 
   // loop through rigid body force elements
   // todo: distinguish between AppliedForce and ConstraintForce
@@ -74,7 +74,7 @@ RigidBodySystem::StateVector<double> RigidBodySystem::dynamics(
 	}
 
   // apply joint limit forces
-  for (auto const& b : tree->bodies) {
+  for (auto const& b : tree_->bodies) {
     if (!b->hasParent()) continue;
     auto const& joint = b->getJoint();
     if (joint.getNumPositions() == 1 && joint.getNumVelocities() == 1) {
@@ -100,19 +100,19 @@ RigidBodySystem::StateVector<double> RigidBodySystem::dynamics(
   Matrix3Xd normal, xA, xB;
   vector<int> bodyA_idx, bodyB_idx;
   if (use_multi_contact) {
-    tree->potentialCollisions(kinsol, phi, normal, xA, xB, bodyA_idx,
+    tree_->potentialCollisions(kinsol, phi, normal, xA, xB, bodyA_idx,
                               bodyB_idx);
   } else {
-    tree->collisionDetect(kinsol, phi, normal, xA, xB, bodyA_idx, bodyB_idx);
+    tree_->collisionDetect(kinsol, phi, normal, xA, xB, bodyA_idx, bodyB_idx);
   }
 
   for (int i = 0; i < phi.rows(); i++) {
     if (phi(i) < 0.0) {  // then i have contact
       // todo: move this entire block to a shared an updated "contactJacobian"
       // method in RigidBodyTree
-      auto JA = tree->transformPointsJacobian(kinsol, xA.col(i), bodyA_idx[i],
+      auto JA = tree_->transformPointsJacobian(kinsol, xA.col(i), bodyA_idx[i],
                                               0, false);
-      auto JB = tree->transformPointsJacobian(kinsol, xB.col(i), bodyB_idx[i],
+      auto JB = tree_->transformPointsJacobian(kinsol, xB.col(i), bodyB_idx[i],
                                               0, false);
       Vector3d this_normal = normal.col(i);
 
@@ -158,8 +158,8 @@ RigidBodySystem::StateVector<double> RigidBodySystem::dynamics(
     }
   }
 
-  if (tree->getNumPositionConstraints()) {
-    int nc = tree->getNumPositionConstraints();
+  if (tree_->getNumPositionConstraints()) {
+    int nc = tree_->getNumPositionConstraints();
     const double alpha = 5.0;  // 1/time constant of position constraint
                                // satisfaction (see my latex rigid body notes)
 
@@ -169,9 +169,9 @@ RigidBodySystem::StateVector<double> RigidBodySystem::dynamics(
                                            // would be returned...
 
     // then compute the constraint force
-    auto phi = tree->positionConstraints(kinsol);
-    auto J = tree->positionConstraintsJacobian(kinsol, false);
-    auto Jdotv = tree->positionConstraintsJacDotTimesV(kinsol);
+    auto phi = tree_->positionConstraints(kinsol);
+    auto J = tree_->positionConstraintsJacobian(kinsol, false);
+    auto Jdotv = tree_->positionConstraintsJacDotTimesV(kinsol);
 
     // phiddot = -2 alpha phidot - alpha^2 phi  (0 + critically damped
     // stabilization term)
@@ -198,7 +198,7 @@ RigidBodySystem::OutputVector<double> RigidBodySystem::output(const double& t,
                                                               const RigidBodySystem::StateVector<double>& x,
                                                               const RigidBodySystem::InputVector<double>& u) const
 {
-  auto kinsol = tree->doKinematics(x.topRows(tree->num_positions), x.bottomRows(tree->num_velocities));
+  auto kinsol = tree_->doKinematics(x.topRows(tree_->num_positions()), x.bottomRows(tree_->num_velocities()));
   Eigen::VectorXd y(getNumOutputs());
 
   assert(getNumStates() == x.size());
@@ -252,8 +252,8 @@ DRAKERBSYSTEM_EXPORT RigidBodySystem::StateVector<double>
 Drake::getInitialState(const RigidBodySystem& sys) {
   VectorXd x0(sys.tree_->num_positions() + sys.tree_->num_velocities());
   default_random_engine generator;
-  x0 << sys.tree->getRandomConfiguration(generator),
-      VectorXd::Random(sys.tree->num_velocities);
+  x0 << sys.tree_->getRandomConfiguration(generator),
+      VectorXd::Random(sys.tree_->num_velocities());
 
   // todo: implement joint limits, etc.
 
@@ -294,7 +294,7 @@ Drake::getInitialState(const RigidBodySystem& sys) {
     		              q_guess);
     prog.solve();
 
-    x0 << qvar.value(), VectorXd::Zero(sys.tree_->num_velocities);
+    x0 << qvar.value(), VectorXd::Zero(sys.tree_->num_velocities());
   }
   return x0;
 }

@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
   options.initial_step_size = 0.01;
 
   VectorXd x0 = VectorXd::Zero(rigid_body_sys->getNumStates());
-  x0.head(tree->num_positions) = tree->getZeroConfiguration();
+  x0.head(tree->num_positions()) = tree->getZeroConfiguration();
 
   auto lcmio_with_vis = cascade(sys_with_vis, rbsys_output_to_quad_state);
 

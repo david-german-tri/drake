@@ -26,17 +26,17 @@ int main(int argc, char* argv[]) {
   }
 
   VectorXd q = model->getZeroConfiguration();
-  VectorXd v = VectorXd::Zero(model->num_velocities);
+  VectorXd v = VectorXd::Zero(model->num_velocities());
   int i;
 
-  if (argc >= 2 + model->num_positions) {
-    for (i = 0; i < model->num_positions; i++)
+  if (argc >= 2 + model->num_positions()) {
+    for (i = 0; i < model->num_positions(); i++)
       sscanf(argv[2 + i], "%lf", &q(i));
   }
 
-  if (argc >= 2 + model->num_positions + model->num_velocities) {
-    for (i = 0; i < model->num_velocities; i++)
-      sscanf(argv[2 + model->num_positions + i], "%lf", &v(i));
+  if (argc >= 2 + model->num_positions() + model->num_velocities()) {
+    for (i = 0; i < model->num_velocities(); i++)
+      sscanf(argv[2 + model->num_positions() + i], "%lf", &v(i));
   }
 
   KinematicsCache<double> cache = model->doKinematics(q, v);
