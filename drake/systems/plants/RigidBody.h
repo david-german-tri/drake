@@ -12,11 +12,6 @@
 #include "drake/drakeRBM_export.h"
 
 class DRAKERBM_EXPORT RigidBody {
- private:
-  std::unique_ptr<DrakeJoint> joint;
-  DrakeCollision::bitmask collision_filter_group;
-  DrakeCollision::bitmask collision_filter_ignores;
-
  public:
   RigidBody();
 
@@ -62,9 +57,14 @@ class DRAKERBM_EXPORT RigidBody {
              !(other.joint && other.joint->isFloating())));
   }
 
+  void set_is_static(const bool value) const {
+    is_static_ = value;
+  }
+
   bool CollidesWith(const RigidBody& other) const {
     bool ignored =
         this == &other || adjacentTo(other) ||
+        (is_static_ && other.is_static_) ||
         (collision_filter_group & other.getCollisionFilterIgnores()).any() ||
         (other.getCollisionFilterGroup() & collision_filter_ignores).any();
     return !ignored;
@@ -77,7 +77,6 @@ class DRAKERBM_EXPORT RigidBody {
   bool appendCollisionElementIdsFromThisBody(
       std::vector<DrakeCollision::ElementId>& ids) const;
 
- public:
   std::string linkname;
   std::string model_name;  // todo: replace robotnum w/ model_name
   int robotnum;            // uses 0-index. starts from 0
@@ -128,10 +127,15 @@ class DRAKERBM_EXPORT RigidBody {
     std::shared_ptr<RigidBody> body;
   };
 
- public:
 #ifndef SWIG
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 #endif
+
+ private:
+  bool is_static_;
+  std::unique_ptr<DrakeJoint> joint;
+  DrakeCollision::bitmask collision_filter_group;
+  DrakeCollision::bitmask collision_filter_ignores;
 };
 
 #endif

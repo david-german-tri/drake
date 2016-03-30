@@ -444,6 +444,16 @@ void parseModel(RigidBodyTree* model, XMLElement* node,
     throw runtime_error("Error: your model must have a name attribute");
   string model_name = node->Attribute("name");
 
+  // Parse the <static> tag. Links in a static model never collide with other
+  // links in static models.
+  // TODO(david-german-tri): Enforce other constraints on static models.
+  // No inertia?  Fixed joints only?
+  XMLElement* static_element = node->FirstChildElement("static");
+  bool is_static = false;
+  if (static_element != nullptr) {
+    static_element->QueryBoolText(&is_static);
+  }
+
   Isometry3d transform_to_world = Isometry3d::Identity();
   XMLElement* pose = node->FirstChildElement("pose");
   if (pose) poseValueToTransform(pose, pose_map, transform_to_world);
