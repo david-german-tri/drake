@@ -1,5 +1,5 @@
-#ifndef __DrakeCollisionModel_H__
-#define __DrakeCollisionModel_H__
+#ifndef DRAKE_SYSTEMS_PLANTS_COLLISION_MODEL_H_
+#define DRAKE_SYSTEMS_PLANTS_COLLISION_MODEL_H_
 
 #include <memory>
 #include <unordered_map>
@@ -8,7 +8,7 @@
 #include <Eigen/StdVector>
 
 #include "Element.h"
-#include "PointPair.h"
+#include "drake/systems/plants/collision/point_pair.h"
 #include "drake/drakeCollision_export.h"
 
 namespace DrakeCollision {
@@ -187,4 +187,4 @@ class DRAKECOLLISION_EXPORT Model {
 };
 }
 
-#endif
+#endif  // DRAKE_SYSTEMS_PLANTS_COLLISION_MODEL_H_
