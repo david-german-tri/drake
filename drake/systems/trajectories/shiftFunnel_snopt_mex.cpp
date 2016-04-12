@@ -31,7 +31,6 @@
 namespace snopt {
 #include "snopt.hh"
 #include "snfilewrapper.hh"
-//#include "snoptProblem.hh"
 }
 
 // Internal access to bullet
@@ -84,9 +83,7 @@ const int DEFAULT_LENCW = 500;
 /* Constraint to make sure current state is in inlet of shifted funnel
  */
 double containmentConstraint(snopt::doublereal x_shift[],
-                             double *containment_grad)
-
-{
+                             double *containment_grad) {
   // Initialize some variables
   mxArray *x0 =
       mxGetField(funnelLibrary, funnelIdx, "x0");  // all points on trajectory
@@ -535,8 +532,7 @@ bool shiftFunnel(int funnelIdx, const mxArray *funnelLibrary,
   // Set min distance
   *min_dist = min_dist_snopt;
 
-  if (*min_dist > 1.0)  // Collision free
-  {
+  if (*min_dist > 1.0) {  // Collision free
     delete[] F;
     return true;
   } else {
