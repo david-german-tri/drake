@@ -256,7 +256,7 @@ RigidBodySystem::OutputVector<double> RigidBodySystem::output(
   y.segment(0, getNumStates()) << x;
   int index = getNumStates();
   for (const auto& s : sensors) {
-    y.segment(index, s->getNumOutputs()) = s->output(t, kinsol, u);
+    y.segment(index, s->getNumOutputs()) = s->output(*this, t, kinsol, u);
     index += s->getNumOutputs();
   }
   return y;
@@ -392,16 +392,17 @@ RigidBodySpringDamper::RigidBodySpringDamper(RigidBodySystem& sys,
 RigidBodyMagnetometer::RigidBodyMagnetometer(
     RigidBodySystem const& sys, const std::string& name,
     const std::shared_ptr<RigidBodyFrame> frame, double declination)
-    : RigidBodySensor(sys, name), frame(frame) {
+    : RigidBodySensor(name), frame(frame) {
   setDeclination(declination);
 }
 
 RigidBodyAccelerometer::RigidBodyAccelerometer(
     RigidBodySystem const& sys, const std::string& name,
     const std::shared_ptr<RigidBodyFrame> frame)
-    : RigidBodySensor(sys, name), frame(frame), gravity_compensation(false) {}
+    : RigidBodySensor(name), frame(frame), gravity_compensation(false) {}
 
 Eigen::VectorXd RigidBodyAccelerometer::output(
+    const RigidBodySystem& sys,
     const double& t, const KinematicsCache<double>& rigid_body_state,
     const RigidBodySystem::InputVector<double>& u) const {
   VectorXd x = rigid_body_state.getX();
@@ -433,9 +434,10 @@ Eigen::VectorXd RigidBodyAccelerometer::output(
 RigidBodyGyroscope::RigidBodyGyroscope(
     RigidBodySystem const& sys, const std::string& name,
     const std::shared_ptr<RigidBodyFrame> frame)
-    : RigidBodySensor(sys, name), frame(frame) {}
+    : RigidBodySensor(name), frame(frame) {}
 
 Eigen::VectorXd RigidBodyMagnetometer::output(
+    const RigidBodySystem& sys,
     const double& t, const KinematicsCache<double>& rigid_body_state,
     const RigidBodySystem::InputVector<double>& u) const {
   auto const& tree = sys.getRigidBodyTree();
@@ -449,6 +451,7 @@ Eigen::VectorXd RigidBodyMagnetometer::output(
 }
 
 Eigen::VectorXd RigidBodyGyroscope::output(
+    const RigidBodySystem& sys,
     const double& t, const KinematicsCache<double>& rigid_body_state,
     const RigidBodySystem::InputVector<double>& u) const {
   // relative twist of body with respect to world expressed in body
@@ -465,7 +468,7 @@ RigidBodyDepthSensor::RigidBodyDepthSensor(
     RigidBodySystem const& sys, const std::string& name,
     const std::shared_ptr<RigidBodyFrame> frame, std::size_t samples,
     double min_angle, double max_angle, double range)
-    : RigidBodySensor(sys, name),
+    : RigidBodySensor(name),
       frame_(frame),
       min_yaw_(min_angle),
       max_yaw_(max_angle),
@@ -478,7 +481,7 @@ RigidBodyDepthSensor::RigidBodyDepthSensor(
 RigidBodyDepthSensor::RigidBodyDepthSensor(
     RigidBodySystem const& sys, const std::string& name,
     std::shared_ptr<RigidBodyFrame> frame, tinyxml2::XMLElement* node)
-    : RigidBodySensor(sys, name), frame_(frame) {
+    : RigidBodySensor(name), frame_(frame) {
   string type(node->Attribute("type"));
 
   if (type.compare("ray") == 0) {
@@ -553,7 +556,7 @@ void RigidBodyDepthSensor::CheckValidConfiguration() {
                  "Contradiction between min/max pitch and number of pixels per "
                  "row."
               << std::endl
-              << "  - sensor name: " << name << std::endl
+              << "  - sensor name: " << get_name() << std::endl
               << "  - min pitch: " << min_pitch_ << std::endl
               << "  - max pitch: " << max_pitch_ << std::endl
               << "  - number of pixels per row: " << num_pixel_rows_
@@ -569,7 +572,7 @@ void RigidBodyDepthSensor::CheckValidConfiguration() {
                  "Contradiction between min/max yaw and number of pixels per "
                  "column."
               << std::endl
-              << "  - sensor name: " << name << std::endl
+              << "  - sensor name: " << get_name() << std::endl
               << "  - min yaw: " << min_yaw_ << std::endl
               << "  - max yaw: " << max_yaw_ << std::endl
               << "  - number of pixels per row: " << num_pixel_cols_
@@ -603,6 +606,7 @@ void RigidBodyDepthSensor::cacheRaycastEndpoints() {
 }
 
 Eigen::VectorXd RigidBodyDepthSensor::output(
+    const RigidBodySystem& sys,
     const double& t, const KinematicsCache<double>& rigid_body_state,
     const RigidBodySystem::InputVector<double>& u) const {
   const size_t num_distances = num_pixel_cols_ * num_pixel_rows_;
