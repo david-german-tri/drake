@@ -390,14 +390,14 @@ RigidBodySpringDamper::RigidBodySpringDamper(RigidBodySystem& sys,
 }
 
 RigidBodyMagnetometer::RigidBodyMagnetometer(
-    RigidBodySystem const& sys, const std::string& name,
+    const std::string& name,
     const std::shared_ptr<RigidBodyFrame> frame, double declination)
     : RigidBodySensor(name), frame(frame) {
   setDeclination(declination);
 }
 
 RigidBodyAccelerometer::RigidBodyAccelerometer(
-    RigidBodySystem const& sys, const std::string& name,
+    const std::string& name,
     const std::shared_ptr<RigidBodyFrame> frame)
     : RigidBodySensor(name), frame(frame), gravity_compensation(false) {}
 
@@ -432,7 +432,7 @@ Eigen::VectorXd RigidBodyAccelerometer::output(
 }
 
 RigidBodyGyroscope::RigidBodyGyroscope(
-    RigidBodySystem const& sys, const std::string& name,
+    const std::string& name,
     const std::shared_ptr<RigidBodyFrame> frame)
     : RigidBodySensor(name), frame(frame) {}
 
@@ -465,7 +465,7 @@ Eigen::VectorXd RigidBodyGyroscope::output(
 }
 
 RigidBodyDepthSensor::RigidBodyDepthSensor(
-    RigidBodySystem const& sys, const std::string& name,
+    const std::string& name,
     const std::shared_ptr<RigidBodyFrame> frame, std::size_t samples,
     double min_angle, double max_angle, double range)
     : RigidBodySensor(name),
@@ -479,7 +479,7 @@ RigidBodyDepthSensor::RigidBodyDepthSensor(
 }
 
 RigidBodyDepthSensor::RigidBodyDepthSensor(
-    RigidBodySystem const& sys, const std::string& name,
+    const std::string& name,
     std::shared_ptr<RigidBodyFrame> frame, tinyxml2::XMLElement* node)
     : RigidBodySensor(name), frame_(frame) {
   string type(node->Attribute("type"));

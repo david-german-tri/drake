@@ -482,10 +482,10 @@ class DRAKERBSYSTEM_EXPORT RigidBodySensor {
  */
 class DRAKERBSYSTEM_EXPORT RigidBodyDepthSensor : public RigidBodySensor {
  public:
-  RigidBodyDepthSensor(RigidBodySystem const& sys, const std::string& name,
+  RigidBodyDepthSensor(const std::string& name,
                        const std::shared_ptr<RigidBodyFrame> frame,
                        tinyxml2::XMLElement* node);
-  RigidBodyDepthSensor(RigidBodySystem const& sys, const std::string& name,
+  RigidBodyDepthSensor(const std::string& name,
                        const std::shared_ptr<RigidBodyFrame> frame,
                        std::size_t samples, double min_angle, double max_angle,
                        double range);
@@ -594,7 +594,7 @@ class DRAKERBSYSTEM_EXPORT RigidBodyDepthSensor : public RigidBodySensor {
  */
 class DRAKERBSYSTEM_EXPORT RigidBodyAccelerometer : public RigidBodySensor {
  public:
-  RigidBodyAccelerometer(RigidBodySystem const& sys, const std::string& name,
+  RigidBodyAccelerometer(const std::string& name,
                          const std::shared_ptr<RigidBodyFrame> frame);
   ~RigidBodyAccelerometer() override {}
 
@@ -624,7 +624,7 @@ class DRAKERBSYSTEM_EXPORT RigidBodyAccelerometer : public RigidBodySensor {
  */
 class DRAKERBSYSTEM_EXPORT RigidBodyGyroscope : public RigidBodySensor {
  public:
-  RigidBodyGyroscope(RigidBodySystem const& sys, const std::string& name,
+  RigidBodyGyroscope(const std::string& name,
                      const std::shared_ptr<RigidBodyFrame> frame);
   ~RigidBodyGyroscope() override {}
 
@@ -651,7 +651,7 @@ class DRAKERBSYSTEM_EXPORT RigidBodyMagnetometer : public RigidBodySensor {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  RigidBodyMagnetometer(RigidBodySystem const& sys, const std::string& name,
+  RigidBodyMagnetometer(const std::string& name,
                         const std::shared_ptr<RigidBodyFrame> frame,
                         double declination);
   ~RigidBodyMagnetometer() override {}
