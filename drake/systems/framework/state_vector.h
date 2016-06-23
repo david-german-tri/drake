@@ -25,21 +25,21 @@ class StateVector {
   ///
   /// Implementations should ensure this operation is O(1) and allocates no
   /// memory.
-  virtual int64_t size() const = 0;
+  virtual int size() const = 0;
 
   /// Returns the element at the given index in the vector. Throws
   /// std::out_of_range if the index is >= size().
   ///
   /// Implementations should ensure this operation is O(1) and allocates no
   /// memory.
-  virtual const T GetAtIndex(int64_t index) const = 0;
+  virtual const T GetAtIndex(int index) const = 0;
 
   /// Replaces the state at the given index with the value. Throws
   /// std::out_of_range if the index is >= size().
   ///
   /// Implementations should ensure this operation is O(1) and allocates no
   /// memory.
-  virtual void SetAtIndex(int64_t index, const T& value) = 0;
+  virtual void SetAtIndex(int index, const T& value) = 0;
 
   /// Replaces the entire state with the contents of value. Throws
   /// std::out_of_range if value is not a column vector with size() rows.
@@ -64,7 +64,7 @@ class StateVector {
     if (vec.rows() != size()) {
       throw std::out_of_range("Addends must be the same length.");
     }
-    for (int64_t i = 0; i < size(); ++i) {
+    for (int i = 0; i < size(); ++i) {
       vec[i] += GetAtIndex(i);
     }
   }
@@ -80,7 +80,7 @@ class StateVector {
       throw std::out_of_range("Addends must be the same length.");
     }
     DRAKE_ASSERT(size() == rhs.size());
-    for (int64_t i = 0; i < size(); ++i) {
+    for (int i = 0; i < size(); ++i) {
       SetAtIndex(i, GetAtIndex(i) + rhs.GetAtIndex(i));
     }
     return *this;
