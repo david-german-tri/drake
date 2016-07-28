@@ -134,8 +134,7 @@ class Diagram : public ContinuousSystemInterface<T> {
       context->ExportInput(ConvertToContextPortIdentifier(id));
     }
 
-    // TODO(david-german-tri): Create a state supervector over the constituent
-    // systems.
+    context->MakeState();
     return std::unique_ptr<ContextBase<T>>(context.release());
   }
 

@@ -9,6 +9,7 @@ set(sources
   diagram_context.cc
   state.cc
   state_subvector.cc
+  state_supervector.cc
   state_vector.cc
   system_interface.cc
   system_input.cc
@@ -33,6 +34,7 @@ set(installed_headers
   diagram_context.h
   state.h
   state_subvector.h
+  state_supervector.h
   state_vector.h
   system_interface.h
   system_input.h
