@@ -12,8 +12,7 @@ namespace drake {
 namespace systems {
 
 /// The InputPort describes a single input to a System, from another
-/// System or from an external driver. Users should not subclass InputPort:
-/// all InputPorts are either DependentInputPorts or FreestandingInputPorts.
+/// System or from an external driver. Users should not subclass InputPort.
 ///
 /// @tparam T The type of the input port. Must be a valid Eigen scalar.
 template <typename T>
@@ -55,6 +54,51 @@ class InputPort : public OutputPortListenerInterface {
 
  private:
   std::function<void()> invalidation_callback_ = nullptr;
+};
+
+/// The DependentInputPort wraps a pointer to the OutputPort of a System for use
+/// as an input to another System. Many DependentInputPorts may wrap a single
+/// OutputPort.
+///
+/// @tparam T The type of the input port. Must be a valid Eigen scalar.
+template <typename T>
+class DependentInputPort : public InputPort<T> {
+ public:
+  /// Creates an input port with the given @p sample_time_sec, connected
+  /// to the given @p output_port, which must not be nullptr. The output
+  /// port must outlive this input port.
+  DependentInputPort(OutputPort<T>* output_port, double sample_time_sec)
+      : output_port_(output_port), sample_time_sec_(sample_time_sec) {
+    output_port_->add_dependent(this);
+  }
+
+  /// Disconnects from the output port.
+  ~DependentInputPort() override {
+    output_port_->remove_dependent(this);
+  }
+
+  /// Returns the value version of the connected output port.
+  int64_t get_version() const override {
+    return output_port_->get_version();
+  }
+
+  double get_sample_time_sec() const override {
+    return sample_time_sec_;
+  }
+
+  const VectorInterface<T>* get_vector_data() const override {
+    return output_port_->get_vector_data();
+  }
+
+ private:
+  // DependentInputPort objects are neither copyable nor moveable.
+  DependentInputPort(const DependentInputPort& other) = delete;
+  DependentInputPort& operator=(const DependentInputPort& other) = delete;
+  DependentInputPort(DependentInputPort&& other) = delete;
+  DependentInputPort& operator=(DependentInputPort&& other) = delete;
+
+  OutputPort<T>* output_port_;
+  double sample_time_sec_;
 };
 
 /// The DependentInputPort wraps a pointer to the OutputPort of a System for use

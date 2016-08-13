@@ -81,9 +81,7 @@ class Diagram : public System<T> {
     ThrowIfFinal();
     Register(sys);
     PortIdentifier id{sys, port_index};
-    ThrowIfInputAlreadyWired(id);
     input_port_ids_.push_back(id);
-    diagram_input_set_.insert(id);
     systems_.insert(sys);
   }
 
@@ -237,13 +235,6 @@ class Diagram : public System<T> {
     }
   }
 
-  void ThrowIfInputAlreadyWired(const PortIdentifier& id) const {
-    if (dependency_graph_.find(id) != dependency_graph_.end() ||
-        diagram_input_set_.find(id) != diagram_input_set_.end()) {
-      throw std::logic_error("Input port is already wired.");
-    }
-  }
-
   int GetSystemIndex(const System<T>* sys) const {
     auto it = sorted_systems_map_.find(sys);
     DRAKE_ASSERT(it != sorted_systems_map_.end());
@@ -329,9 +320,6 @@ class Diagram : public System<T> {
   // The ordered inputs and outputs of this Diagram.
   std::vector<PortIdentifier> input_port_ids_;
   std::vector<PortIdentifier> output_port_ids_;
-
-  // For fast membership queries: has this input port already been declared?
-  std::set<PortIdentifier> diagram_input_set_;
 
   // A map from the input ports of constituent systems, to the output ports of
   // the systems on which they depend.
