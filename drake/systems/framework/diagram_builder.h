@@ -56,14 +56,14 @@ class DiagramBuilder {
         PortIdentifier{output.get_system(), output.get_index()});
   }
 
-  /// Produces the DiagramBlueprint that has been described by the calls to
+  /// Produces the Blueprint that has been described by the calls to
   /// Connect, ExportInput, and ExportOutput. Throws std::logic_error if the
   /// graph is not buildable.
-  typename Diagram<T>::DiagramBlueprint Compile() {
+  typename Diagram<T>::Blueprint Compile() {
     if (registered_systems_.size() == 0) {
       throw std::logic_error("Cannot Compile an empty DiagramBuilder.");
     }
-    return typename Diagram<T>::DiagramBlueprint{
+    return typename Diagram<T>::Blueprint{
         input_port_ids_, output_port_ids_, dependency_graph_, SortSystems()};
   }
 

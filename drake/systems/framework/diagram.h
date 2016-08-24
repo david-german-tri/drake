@@ -15,6 +15,8 @@
 namespace drake {
 namespace systems {
 
+template<typename U> class DiagramBuilder;
+
 /// DiagramOutput is an implementation of SystemOutput that holds unowned
 /// OutputPort pointers. It is used to expose the outputs of constituent
 /// systems as outputs of a Diagram.
@@ -52,29 +54,6 @@ template <typename T>
 class Diagram : public System<T> {
  public:
   typedef typename std::pair<const System<T>*, int> PortIdentifier;
-
-  /// A structural outline of a Diagram. If you aren't sure what this means,
-  /// just treat it as a black box that DiagramBuilder produces.
-  struct DiagramBlueprint {
-    /// The ordered subsystem ports that are inputs to the entire diagram.
-    std::vector<Diagram<T>::PortIdentifier> input_port_ids;
-    /// The ordered subsystem ports that are outputs of the entire diagram.
-    std::vector<Diagram<T>::PortIdentifier> output_port_ids;
-    /// A map from the input ports of constituent systems to the output ports
-    /// on which they depend. This graph is possibly cyclic, but must not
-    /// contain an algebraic loop.
-    std::map<PortIdentifier, PortIdentifier> dependency_graph;
-    /// A list of the systems in the dependency graph in a valid, sorted
-    /// execution order, such that if EvalOutput is called on each system in
-    /// succession, every system will have valid inputs by the time its turn
-    /// comes.
-    std::vector<const System<T>*> sorted_systems;
-  };
-
-  /// Constructs a Diagram from the DiagramBlueprint that a DiagramBuilder
-  /// produces. Consider using DiagramBuilder::Build instead of calling this
-  /// constructor.
-  explicit Diagram(const DiagramBlueprint& blueprint) { Initialize(blueprint); }
 
   ~Diagram() override {}
 
@@ -184,8 +163,25 @@ class Diagram : public System<T> {
   /// are obligated to call Initialize themselves.
   Diagram() {}
 
+  /// A structural outline of a Diagram, produced by DiagramBuilder.
+  struct Blueprint {
+    /// The ordered subsystem ports that are inputs to the entire diagram.
+    std::vector<Diagram<T>::PortIdentifier> input_port_ids;
+    /// The ordered subsystem ports that are outputs of the entire diagram.
+    std::vector<Diagram<T>::PortIdentifier> output_port_ids;
+    /// A map from the input ports of constituent systems to the output ports
+    /// on which they depend. This graph is possibly cyclic, but must not
+    /// contain an algebraic loop.
+    std::map<PortIdentifier, PortIdentifier> dependency_graph;
+    /// A list of the systems in the dependency graph in a valid, sorted
+    /// execution order, such that if EvalOutput is called on each system in
+    /// succession, every system will have valid inputs by the time its turn
+    /// comes.
+    std::vector<const System<T>*> sorted_systems;
+  };
+
   // Validates the given @p blueprint and sets up the Diagram accordingly.
-  void Initialize(const DiagramBlueprint& blueprint) {
+  void Initialize(const Blueprint& blueprint) {
     dependency_graph_ = blueprint.dependency_graph;
     sorted_systems_ = blueprint.sorted_systems;
     input_port_ids_ = blueprint.input_port_ids;
@@ -211,6 +207,9 @@ class Diagram : public System<T> {
   }
 
  private:
+  /// Constructs a Diagram from the Blueprint that a DiagramBuilder produces.
+  explicit Diagram(const Blueprint& blueprint) { Initialize(blueprint); }
+
   // Exposes the given port as an input of the Diagram.
   void ExportInput(const PortIdentifier& port) {
     const System<T>* const sys = port.first;
@@ -318,6 +317,8 @@ class Diagram : public System<T> {
   // The ordered inputs and outputs of this Diagram.
   std::vector<PortIdentifier> input_port_ids_;
   std::vector<PortIdentifier> output_port_ids_;
+
+  friend class DiagramBuilder<T>;
 };
 
 }  // namespace systems
