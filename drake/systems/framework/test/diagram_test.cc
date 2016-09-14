@@ -420,7 +420,7 @@ class PublishingSystem : public LeafSystem<double> {
  protected:
   void DoPublish(const Context<double>& context) const override {
     CheckValidContext(context);
-    callback_(context.get_vector_input(0)->get_value()[0]);
+    callback_(this->EvalVectorInput(context, 0)->get_value()[0]);
   }
 
  private:

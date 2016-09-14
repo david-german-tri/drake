@@ -6,6 +6,7 @@
 #include "drake/systems/framework/basic_vector.h"
 #include "drake/systems/framework/context.h"
 #include "drake/systems/framework/cache.h"
+#include "drake/systems/framework/input_port_evaluator_interface.h"
 #include "drake/systems/framework/state.h"
 #include "drake/systems/framework/system_input.h"
 #include "drake/systems/framework/vector_base.h"
@@ -51,20 +52,16 @@ class LeafContext : public Context<T> {
     return static_cast<int>(inputs_.size());
   }
 
-  const BasicVector<T>* get_vector_input(int index) const override {
+  /// Asks the @p evaluator to evaluate the port specified by @p descriptor
+  /// in the parent context.
+  const InputPort* EvalInputPort(
+      const detail::InputPortEvaluatorInterface<T>* evaluator,
+      const SystemPortDescriptor<T>& descriptor) const override {
+    const int index = descriptor.get_index();
     DRAKE_DEMAND(index >= 0 && index < get_num_input_ports());
-    if (inputs_[index] == nullptr) {
-      return nullptr;
-    }
-    return inputs_[index]->template get_vector_data<T>();
-  }
-
-  const AbstractValue* get_abstract_input(int index) const override {
-    DRAKE_DEMAND(index >= 0 && index < get_num_input_ports());
-    if (inputs_[index] == nullptr) {
-      return nullptr;
-    }
-    return inputs_[index]->get_abstract_data();
+    if (inputs_[index] == nullptr) return nullptr;
+    evaluator->EvaluateInputPort(this->get_parent(), descriptor);
+    return inputs_[index].get();
   }
 
   const State<T>& get_state() const override { return state_; }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "drake/systems/framework/input_port_evaluator_interface.h"
 #include "drake/systems/framework/state.h"
 #include "drake/systems/framework/system_input.h"
 #include "drake/systems/framework/value.h"
@@ -47,29 +48,6 @@ class Context {
   /// Returns the number of input ports.
   virtual int get_num_input_ports() const = 0;
 
-  /// Returns the vector data of the input port at @p index. Returns nullptr
-  /// if that port is not a vector-valued port, or if it is not connected.
-  /// Throws std::out_of_range if that port does not exist.
-  virtual const BasicVector<T>* get_vector_input(int index) const = 0;
-
-  /// Returns the abstract data of the input port at @p index. Returns nullptr
-  /// if that port is not connected. Throws std::out_of_range if that port
-  /// does not exist.
-  virtual const AbstractValue* get_abstract_input(int index) const = 0;
-
-  /// Returns the data of the input port at @p index, or nullptr if that port
-  /// is not connected.
-  ///
-  /// @tparam V The type of data expected.
-  template <typename V>
-  const V* get_input_value(int index) const {
-    const AbstractValue* value = get_abstract_input(index);
-    if (value == nullptr) {
-      return nullptr;
-    }
-    return &(value->GetValue<V>());
-  }
-
   virtual const State<T>& get_state() const = 0;
 
   /// Returns writable access to the State. No cache invalidation occurs until
@@ -93,6 +71,87 @@ class Context {
     return std::unique_ptr<Context<T>>(DoClone());
   }
 
+  /// Evaluates and returns the input port identified by @p descriptor,
+  /// using the given @p evaluator, which should be the Diagram containing
+  /// the System that allocated this Context. The evaluation will be performed
+  /// in this Context's parent. It is a recursive operation that may invoke
+  /// long chains of evaluation through all the Systems that are prerequisites
+  /// to the specified port.
+  ///
+  /// Returns nullptr if the port is not connected. Aborts if the port does
+  /// not exist.
+  ///
+  /// This method is an implementation detail, and only framework code should
+  /// ever call it.
+  virtual const InputPort* EvalInputPort(
+      const detail::InputPortEvaluatorInterface<T>* evaluator,
+      const SystemPortDescriptor<T>& descriptor) const = 0;
+
+  /// Evaluates and returns the vector data of the input port at @p index.
+  /// This is a recursive operation that may invoke long chains of evaluation
+  /// through all the Systems that are prerequisite to the specified port.
+  ///
+  /// Returns nullptr if the port is not vector-valued, or not connected.
+  /// Aborts if the port does not exist.
+  ///
+  /// This method is an implementation detail, and only framework code should
+  /// ever call it.
+  const BasicVector<T>* EvalVectorInput(
+      const detail::InputPortEvaluatorInterface<T>* evaluator,
+      const SystemPortDescriptor<T>& descriptor) const {
+    const InputPort* port = EvalInputPort(evaluator, descriptor);
+    if (port == nullptr) return nullptr;
+    return port->template get_vector_data<T>();
+  }
+
+  /// Evaluates and returns the abstract data of the input port at @p index.
+  /// This is a recursive operation that may invoke long chains of evaluation
+  /// through all the Systems that are prerequisite to the specified port.
+  ///
+  /// Returns nullptr if the port is not vector-valued, or not connected.
+  /// Aborts if the port does not exist.
+  ///
+  /// This method is an implementation detail, and only framework code should
+  /// ever call it.
+  const AbstractValue* EvalAbstractInput(
+      const detail::InputPortEvaluatorInterface<T>* evaluator,
+      const SystemPortDescriptor<T>& descriptor) const {
+    const InputPort* port = EvalInputPort(evaluator, descriptor);
+    if (port == nullptr) return nullptr;
+    return port->get_abstract_data();
+  }
+
+  /// Evaluates and returns the data of the input port at @p index.
+  /// This is a recursive operation that may invoke long chains of evaluation
+  /// through all the Systems that are prerequisite to the specified port.
+  ///
+  /// Returns nullptr if the port is not vector-valued, or not connected.
+  /// Aborts if the port does not exist.
+  ///
+  /// This method is an implementation detail, and only framework code should
+  /// ever call it.
+  ///
+  /// @tparam V The type of data expected.
+  template <typename V>
+  const V* EvalInputValue(
+      const detail::InputPortEvaluatorInterface<T>* evaluator,
+      const SystemPortDescriptor<T>& descriptor) const {
+    const AbstractValue* value = EvalAbstractInput(evaluator, descriptor);
+    if (value == nullptr) return nullptr;
+    return &(value->GetValue<V>());
+  }
+
+  /// Declares that @p parent is the context of the enclosing scope. The
+  /// enclosing scope context is needed to evaluate inputs recursively.
+  /// Aborts if the parent has already been set to something else.
+  ///
+  /// This is an extremely embarrassing and dangerous implementation detail.
+  /// Please forget you ever saw it.
+  void set_parent(const Context<T>* parent) {
+    DRAKE_DEMAND(parent_ == nullptr || parent_ == parent);
+    parent_ = parent;
+  }
+
  protected:
   /// Contains the return-type-covariant implementation of Clone().
   virtual Context<T>* DoClone() const = 0;
@@ -106,9 +165,21 @@ class Context {
   /// computations.
   StepInfo<T>* get_mutable_step_info() { return &step_info_; }
 
+  /// Returns the context of the enclosing scope, which will always be a
+  /// DiagramContext, or nullptr if there is no enclosing scope.
+  ///
+  /// This is an extremely embarrassing and dangerous implementation detail.
+  /// Please forget you ever saw it.
+  const Context<T>* get_parent() const {
+    return parent_;
+  }
+
  private:
   // Current time and step information.
   StepInfo<T> step_info_;
+
+  // The context of the enclosing scope.
+  const Context<T>* parent_ = nullptr;
 };
 
 }  // namespace systems

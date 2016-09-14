@@ -79,10 +79,10 @@ bool SimpleCar<T>::has_any_direct_feedthrough() const {
   return wrapped_.isDirectFeedthrough();
 }
 
-namespace detail {
 template <typename T>
-std::pair<SimpleCarState1<T>, DrivingCommand1<T>> ConvertContextToSystem1(
-    const systems::Context<T>& context) {
+std::pair<SimpleCarState1<T>, DrivingCommand1<T>>
+SimpleCar<T>::ConvertContextToSystem1(
+    const systems::Context<T>& context) const {
   // Convert the state into System1 data.
   const systems::VectorBase<T>& context_state =
       context.get_state().continuous_state->get_state();
@@ -94,7 +94,7 @@ std::pair<SimpleCarState1<T>, DrivingCommand1<T>> ConvertContextToSystem1(
   // Convert the input into System1 data.
   // TODO(jwnimmer-tri) Why does this return a pointer instead of ref?
   const systems::VectorBase<T>* const context_vector_input =
-      context.get_vector_input(0);
+      this->EvalVectorInput(context, 0);
   DRAKE_ASSERT(context_vector_input != nullptr);
   const DrivingCommand<T>* const driving_command_input =
       dynamic_cast<const DrivingCommand<T>*>(context_vector_input);
@@ -103,7 +103,6 @@ std::pair<SimpleCarState1<T>, DrivingCommand1<T>> ConvertContextToSystem1(
 
   return std::make_pair(state, input);
 }
-}  // namespace detail
 
 template <typename T>
 void SimpleCar<T>::EvalOutput(const systems::Context<T>& context,
@@ -114,7 +113,7 @@ void SimpleCar<T>::EvalOutput(const systems::Context<T>& context,
   // Convert the context into System1 data.
   SimpleCarState1<T> state;
   DrivingCommand1<T> input;
-  std::tie(state, input) = detail::ConvertContextToSystem1(context);
+  std::tie(state, input) = ConvertContextToSystem1(context);
 
   // Obtain the structure we need to write into.
   systems::BasicVector<T>* const output_vector =
@@ -135,7 +134,7 @@ void SimpleCar<T>::EvalTimeDerivatives(
   // Convert the context into System1 data.
   SimpleCarState1<T> state;
   DrivingCommand1<T> input;
-  std::tie(state, input) = detail::ConvertContextToSystem1(context);
+  std::tie(state, input) = ConvertContextToSystem1(context);
 
   // Obtain the structure we need to write into.
   DRAKE_ASSERT(derivatives != nullptr);

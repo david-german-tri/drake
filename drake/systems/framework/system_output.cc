@@ -3,7 +3,7 @@
 namespace drake {
 namespace systems {
 
-OutputPortListenerInterface::~OutputPortListenerInterface() {}
+using detail::OutputPortListenerInterface;
 
 OutputPort::~OutputPort() {
   // Notify any input ports that are still connected to this output port that

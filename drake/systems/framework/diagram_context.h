@@ -9,6 +9,7 @@
 
 #include "drake/systems/framework/basic_vector.h"
 #include "drake/systems/framework/context.h"
+#include "drake/systems/framework/input_port_evaluator_interface.h"
 #include "drake/systems/framework/state.h"
 #include "drake/systems/framework/state_supervector.h"
 #include "drake/systems/framework/system_input.h"
@@ -120,6 +121,7 @@ class DiagramContext : public Context<T> {
                  std::unique_ptr<SystemOutput<T>> output) {
     DRAKE_DEMAND(contexts_[index] == nullptr);
     DRAKE_DEMAND(outputs_[index] == nullptr);
+    context->set_parent(this);
     contexts_[index] = std::move(context);
     outputs_[index] = std::move(output);
   }
@@ -222,6 +224,13 @@ class DiagramContext : public Context<T> {
     return static_cast<int>(input_ids_.size());
   }
 
+  const InputPort* EvalInputPort(
+      const detail::InputPortEvaluatorInterface<T>* evaluator,
+      const SystemPortDescriptor<T>& descriptor) const override {
+    DRAKE_ABORT_MSG("TODO(david-german-tri): I don't think this should ever happen.");
+    return nullptr;
+  }
+
   void SetInputPort(int index, std::unique_ptr<InputPort> port) override {
     if (index < 0 || index >= get_num_input_ports()) {
       throw std::out_of_range("Input port out of range.");
@@ -232,26 +241,6 @@ class DiagramContext : public Context<T> {
     GetMutableSubsystemContext(system_index)
         ->SetInputPort(port_index, std::move(port));
     // TODO(david-german-tri): Set invalidation callbacks.
-  }
-
-  const BasicVector<T>* get_vector_input(int index) const override {
-    if (index >= get_num_input_ports()) {
-      throw std::out_of_range("Input port out of range.");
-    }
-    const PortIdentifier& id = input_ids_[index];
-    SystemIndex system_index = id.first;
-    PortIndex port_index = id.second;
-    return GetSubsystemContext(system_index)->get_vector_input(port_index);
-  }
-
-  const AbstractValue* get_abstract_input(int index) const override {
-    if (index >= get_num_input_ports()) {
-      throw std::out_of_range("Input port out of range.");
-    }
-    const PortIdentifier& id = input_ids_[index];
-    SystemIndex system_index = id.first;
-    PortIndex port_index = id.second;
-    return GetSubsystemContext(system_index)->get_abstract_input(port_index);
   }
 
   const State<T>& get_state() const override { return state_; }

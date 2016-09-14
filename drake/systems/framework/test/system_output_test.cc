@@ -11,7 +11,7 @@
 namespace drake {
 namespace systems {
 
-class TestOutputPortListener : public OutputPortListenerInterface {
+class TestOutputPortListener : public detail::OutputPortListenerInterface {
  public:
   void Invalidate() override { invalidations_++; }
   void Disconnect() override { disconnections_++; }

@@ -108,6 +108,9 @@ class SimpleCar : public systems::LeafSystem<T> {
       const systems::SystemPortDescriptor<T>& descriptor) const override;
 
  private:
+  std::pair<SimpleCarState1<T>, DrivingCommand1<T>>
+  ConvertContextToSystem1(const systems::Context<T>& context) const;
+
   const SimpleCar1 wrapped_;
 };
 

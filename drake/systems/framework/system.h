@@ -9,6 +9,7 @@
 #include "drake/drakeSystemFramework_export.h"
 #include "drake/systems/framework/cache.h"
 #include "drake/systems/framework/context.h"
+#include "drake/systems/framework/input_port_evaluator_interface.h"
 #include "drake/systems/framework/system_output.h"
 #include "drake/systems/framework/system_port_descriptor.h"
 
@@ -138,25 +139,12 @@ class System {
       // TODO(amcastro-tri): add appropriate checks for kAbstractValued ports
       // once abstract ports are implemented in 3164.
       if (this->get_input_port(i).get_data_type() == kVectorValued) {
-        const VectorBase<T>* input_vector = context.get_vector_input(i);
+        const BasicVector<T>* input_vector = this->EvalVectorInput(context, i);
         DRAKE_THROW_UNLESS(input_vector != nullptr);
         DRAKE_THROW_UNLESS(input_vector->size() ==
                            get_input_port(i).get_size());
       }
     }
-  }
-
-  /// Returns an Eigen expression for a vector valued input port with index
-  /// @p port_index in this system.
-  Eigen::VectorBlock<const VectorX<T>> get_input_vector(
-      const Context<T>& context, int port_index) const {
-    DRAKE_ASSERT(0 <= port_index && port_index < get_num_input_ports());
-    const BasicVector<T>* input_vector = context.get_vector_input(port_index);
-
-    DRAKE_ASSERT(input_vector != nullptr);
-    DRAKE_ASSERT(input_vector->size() == get_input_port(port_index).get_size());
-
-    return input_vector->get_value();
   }
 
   // Returns a copy of the continuous state vector into an Eigen vector.
@@ -341,6 +329,17 @@ class System {
   virtual void set_name(const std::string& name) { name_ = name; }
   virtual std::string get_name() const { return name_; }
 
+  /// Declares that @p parent is the Diagram containing this System. The
+  /// enclosing Diagram is needed to evaluate inputs recursively. Aborts if
+  /// the parent has already been set to something else.
+  ///
+  /// This is an extremely embarrassing and dangerous implementation detail.
+  /// Please forget you ever saw it.
+  void set_parent(const detail::InputPortEvaluatorInterface<T>* parent) {
+    DRAKE_DEMAND(parent_ == nullptr || parent_ == parent);
+    parent_ = parent;
+  }
+
  protected:
   System() {}
 
@@ -396,6 +395,23 @@ class System {
     return DeclareOutputPort(kAbstractValued, 0 /* size */, sampling);
   }
 
+  /// Returns the value of the vector-valued port with index @p port_index.
+  const BasicVector<T>* EvalVectorInput(const Context<T>& context,
+                                        int port_index) const {
+    DRAKE_ASSERT(0 <= port_index && port_index < get_num_input_ports());
+    return context.EvalVectorInput(parent_, get_input_port(port_index));
+  }
+
+  /// Returns an Eigen expression for a vector valued input port with index
+  /// @p port_index in this system.
+  Eigen::VectorBlock<const VectorX<T>> EvalEigenVectorInput(
+      const Context<T>& context, int port_index) const {
+    const BasicVector<T>* input_vector = EvalVectorInput(context, port_index);
+    DRAKE_ASSERT(input_vector != nullptr);
+    DRAKE_ASSERT(input_vector->size() == get_input_port(port_index).get_size());
+    return input_vector->get_value();
+  }
+
   /// Returns a mutable Eigen expression for a vector valued output port with
   /// index @p port_index in this system. All InputPorts that directly depend
   /// on this OutputPort will be notified that upstream data has changed, and
@@ -447,6 +463,7 @@ class System {
   std::string name_;
   std::vector<SystemPortDescriptor<T>> input_ports_;
   std::vector<SystemPortDescriptor<T>> output_ports_;
+  const detail::InputPortEvaluatorInterface<T>* parent_ = nullptr;
 };
 
 }  // namespace systems

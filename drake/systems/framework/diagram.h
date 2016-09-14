@@ -89,7 +89,8 @@ class DiagramTimeDerivatives : public DiagramContinuousState<T> {
 /// themselves, and the edges connect the output of one constituent System
 /// to the input of another. To construct a Diagram, use a DiagramBuilder.
 template <typename T>
-class Diagram : public System<T> {
+class Diagram : public System<T>,
+                public detail::InputPortEvaluatorInterface<T> {
  public:
   typedef typename std::pair<const System<T>*, int> PortIdentifier;
 
@@ -168,11 +169,30 @@ class Diagram : public System<T> {
     ExposeSubsystemOutputs(*diagram_context, diagram_output);
 
     // Since the diagram output now contains pointers to the subsystem outputs,
-    // all we need to do is compute all the subsystem outputs in sorted order.
-    //
-    // TODO(david-german-tri): This can be made less conservative. We don't need
-    // to compute intermediate outputs that don't affect the diagram outputs.
-    ComputeAllSubsystemOutputs(diagram_context);
+    // all we need to do is ask those subsystem outputs to evaluate themselves.
+    // They will recursively evaluate any intermediate inputs that they need.
+    for (const PortIdentifier& id : output_port_ids_) {
+      EvaluateOutputPort(*diagram_context, id);
+    }
+  }
+
+  /// Evaluates the value of the subsystem input port with the given @p id
+  /// in the given @p context.
+  /// Satisfies InputPortEvaluatorInterface.
+  void EvaluateInputPort(
+      const Context<T>* context,
+      const SystemPortDescriptor<T>& descriptor) const override {
+    // Find the output port connected to the given input port.
+    const PortIdentifier id{descriptor.get_system(), descriptor.get_index()};
+    const auto upstream_it = dependency_graph_.find(id);
+
+    // If it exists, evaluate it.
+    if (upstream_it != dependency_graph_.end()) {
+      auto diagram_context = dynamic_cast<const DiagramContext<T>*>(context);
+      DRAKE_DEMAND(diagram_context != nullptr);
+      const PortIdentifier& prerequisite = upstream_it->second;
+      this->EvaluateOutputPort(*diagram_context, prerequisite);
+    }
   }
 
   std::unique_ptr<ContinuousState<T>> AllocateTimeDerivatives() const override {
@@ -186,13 +206,8 @@ class Diagram : public System<T> {
 
   void EvalTimeDerivatives(const Context<T>& context,
                            ContinuousState<T>* derivatives) const override {
-    // Freshen all the subsystem inputs to match the provided context.
-    //
-    // TODO(david-german-tri): This can be made less conservative: we don't
-    // need to freshen inputs to subsystems with no state.
     auto diagram_context = dynamic_cast<const DiagramContext<T>*>(&context);
     DRAKE_DEMAND(diagram_context != nullptr);
-    ComputeAllSubsystemOutputs(diagram_context);
 
     auto diagram_derivatives =
         dynamic_cast<DiagramContinuousState<T>*>(derivatives);
@@ -262,13 +277,8 @@ class Diagram : public System<T> {
   Diagram() {}
 
   void DoPublish(const Context<T>& context) const override {
-    // Freshen all the subsystem inputs to match the provided context.
-    //
-    // TODO(david-german-tri): This can be made less conservative: we don't
-    // need to freshen inputs to subsystems that don't Publish.
     auto diagram_context = dynamic_cast<const DiagramContext<T>*>(&context);
     DRAKE_DEMAND(diagram_context != nullptr);
-    ComputeAllSubsystemOutputs(diagram_context);
 
     for (const System<T>* const system : sorted_systems_) {
       const int i = GetSystemIndexOrAbort(system);
@@ -296,7 +306,9 @@ class Diagram : public System<T> {
 
   // Constructs a Diagram from the Blueprint that a DiagramBuilder produces.
   // This constructor is private because only DiagramBuilder calls it.
-  explicit Diagram(const Blueprint& blueprint) { Initialize(blueprint); }
+  explicit Diagram(const Blueprint& blueprint) {
+    Initialize(blueprint);
+  }
 
   // Validates the given @p blueprint and sets up the Diagram accordingly.
   void Initialize(const Blueprint& blueprint) {
@@ -304,6 +316,15 @@ class Diagram : public System<T> {
     DRAKE_DEMAND(sorted_systems_.empty());
     // The initialization must be nontrivial.
     DRAKE_DEMAND(!blueprint.sorted_systems.empty());
+
+    // Take ownership of the constituent Systems, and inform them they are
+    // bound to this Diagram.
+    /*
+    registered_systems_ = std::move(blueprint.registered_systems);
+    for (auto& subsystem : registered_systems_) {
+      subsystem->set_parent(this);
+    }
+    */
 
     // Copy the data from the blueprint into private member variables.
     dependency_graph_ = blueprint.dependency_graph;
@@ -318,6 +339,8 @@ class Diagram : public System<T> {
 
     // Every system must appear in the sort order exactly once.
     DRAKE_DEMAND(sorted_systems_.size() == sorted_systems_map_.size());
+    // Every subsystem must be owned.
+    DRAKE_DEMAND(sorted_systems_.size() == registered_systems_.size());
     // Every port named in the dependency_graph_ must actually exist.
     DRAKE_ASSERT(PortsAreValid());
     // The sort order must square with the dependency_graph_.
@@ -374,6 +397,18 @@ class Diagram : public System<T> {
     this->DeclareOutputPort(descriptor);
   }
 
+  // Evaluates the value of the output port with the given @p id in the given
+  // @p context.
+  void EvaluateOutputPort(const DiagramContext<T>& context,
+                          const PortIdentifier& id) const {
+    const System<T>* const system = id.first;
+    const int i = GetSystemIndexOrAbort(system);
+    const Context<T>* subsystem_context = context.GetSubsystemContext(i);
+    SystemOutput<T>* subsystem_output = context.GetSubsystemOutput(i);
+    // TODO(david-german-tri): Once #2890 is resolved, use it here.
+    system->EvalOutput(*subsystem_context, subsystem_output);
+  }
+
   // Returns the index of the given @p sys in the sorted order of this diagram,
   // or aborts if @p sys is not a member of the diagram.
   int GetSystemIndexOrAbort(const System<T>* sys) const {
@@ -413,21 +448,6 @@ class Diagram : public System<T> {
 
       // Then, put a pointer to that OutputPort in the DiagramOutput.
       (*output->get_mutable_ports())[i] = output_port;
-    }
-  }
-
-  // In sorted order, compute the outputs for all subsystems. This is also a
-  // blunt way to update the inputs for all subsystems to match the given
-  // @p context.
-  void ComputeAllSubsystemOutputs(const DiagramContext<T>* context) const {
-    DRAKE_DEMAND(context != nullptr);
-    // TODO(david-german-tri): Use the diagram-level cache to skip systems that
-    // are already fresh.
-    for (const System<T>* const system : sorted_systems_) {
-      const int i = GetSystemIndexOrAbort(system);
-      const Context<T>* subsystem_context = context->GetSubsystemContext(i);
-      SystemOutput<T>* subsystem_output = context->GetSubsystemOutput(i);
-      system->EvalOutput(*subsystem_context, subsystem_output);
     }
   }
 
@@ -525,6 +545,9 @@ class Diagram : public System<T> {
 
   // The topologically sorted list of Systems in this Diagram.
   std::vector<const System<T>*> sorted_systems_;
+
+  // The Diagram owns its subsystems and maintains them for its lifetime.
+  std::vector<std::unique_ptr<System<T>>> registered_systems_;
 
   // For fast conversion queries: what is the index of this System in the
   // sorted order?

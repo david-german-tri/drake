@@ -44,7 +44,7 @@ class BotVisualizerHack : public systems::LeafSystem<T> {
     }
     DRAKE_DEMAND(sent_load_robot_);
 
-    auto input = context.get_vector_input(0)->get_value().cast<float>();
+    auto input = this->EvalEigenVectorInput(context, 0).template cast<float>();
     DRAKE_DEMAND(input.size() == 6);
 
     drake::lcmt_viewer_draw draw_msg;
