@@ -33,15 +33,20 @@ class ExampleDiagram : public Diagram<double> {
   explicit ExampleDiagram(int length) {
     DiagramBuilder<double> builder;
 
-    adder0_.reset(new Adder<double>(2 /* inputs */, length));
+    adder0_ = builder.Register(
+        std::make_unique<Adder<double>>((2 /* inputs */, length)));
     adder0_->set_name("adder0");
-    adder1_.reset(new Adder<double>(2 /* inputs */, length));
+    adder1_ = builder.Register(
+        std::make_unique<Adder<double>>((2 /* inputs */, length)));
     adder1_->set_name("adder1");
-    adder2_.reset(new Adder<double>(2 /* inputs */, length));
+    adder2_ = builder.Register(
+        std::make_unique<Adder<double>>((2 /* inputs */, length)));
     adder2_->set_name("adder2");
 
-    integrator0_.reset(new Integrator<double>(length));
-    integrator1_.reset(new Integrator<double>(length));
+    integrator0_ =
+        builder.Register(std::make_unique<Integrator<double>>(length));
+    integrator1_ =
+        builder.Register(std::make_unique<Integrator<double>>(length));
 
     builder.Connect(adder0_->get_output_port(0), adder1_->get_input_port(0));
     builder.Connect(adder0_->get_output_port(0), adder2_->get_input_port(0));
@@ -67,12 +72,12 @@ class ExampleDiagram : public Diagram<double> {
   Integrator<double>* integrator1() { return integrator1_.get(); }
 
  private:
-  std::unique_ptr<Adder<double>> adder0_;
-  std::unique_ptr<Adder<double>> adder1_;
-  std::unique_ptr<Adder<double>> adder2_;
+  Adder<double>* adder0_;
+  Adder<double>* adder1_;
+  Adder<double>* adder2_;
 
-  std::unique_ptr<Integrator<double>> integrator0_;
-  std::unique_ptr<Integrator<double>> integrator1_;
+  Integrator<double>* integrator0_;
+  Integrator<double>* integrator1_;
 };
 
 class DiagramTest : public ::testing::Test {
@@ -372,7 +377,8 @@ class AddConstantDiagram : public Diagram<double> {
  public:
   explicit AddConstantDiagram(double constant) : Diagram<double>() {
     constant_.reset(new ConstantVectorSource<double>(Vector1d{constant}));
-    adder_.reset(new Adder<double>(2 /* inputs */, 1 /* length */));
+    adder_ = builder.Register(std::make_unique<Adder<double>(
+        2 /* inputs */, 1 /* length */));
 
     DiagramBuilder<double> builder;
     builder.Connect(constant_->get_output_port(0), adder_->get_input_port(1));
@@ -382,7 +388,7 @@ class AddConstantDiagram : public Diagram<double> {
   }
 
  private:
-  std::unique_ptr<Adder<double>> adder_;
+  Adder<double>* adder_;
   std::unique_ptr<ConstantVectorSource<double>> constant_;
 };
 
@@ -484,10 +490,10 @@ class FeedbackDiagram : public Diagram<double> {
   }
 
  private:
-  std::unique_ptr<Integrator<double>> integrator_;
-  std::unique_ptr<Gain<double>> gain_;
-  std::unique_ptr<Diagram<double>> integrator_diagram_;
-  std::unique_ptr<Diagram<double>> gain_diagram_;
+  Integrator<double>* integrator_;
+  Gain<double>* gain_;
+  Diagram<double>* integrator_diagram_;
+  Diagram<double>* gain_diagram_;
 };
 
 // Tests that since there are no outputs, there is no direct feedthrough.
