@@ -88,7 +88,9 @@ template <typename Derived1, typename Derived2>
 Eigen::Matrix<typename Derived1::Scalar, 3, 1> closestExpmap(
     const Eigen::MatrixBase<Derived1>& expmap1,
     const Eigen::MatrixBase<Derived2>& expmap2) {
-  using namespace std;  // required for ADL of floor() and round().
+  //using namespace std;  // required for ADL of floor() and round().
+  using std::floor;
+  using std::round;
   static_assert(
       Derived1::RowsAtCompileTime == 3 && Derived1::ColsAtCompileTime == 1,
       "Wrong size.");
