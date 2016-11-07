@@ -47,11 +47,13 @@ CacheTicket Cache::MakeCacheTicket(const std::set<CacheTicket>& prerequisites) {
 }
 
 void Cache::Invalidate(CacheTicket ticket) {
+  if (ticket == kNullCacheTicket) return;
   InvalidateRecursively({ticket});
 }
 
 void Cache::InvalidateRecursively(const std::set<CacheTicket>& to_invalidate) {
   for (CacheTicket ticket : to_invalidate) {
+    DRAKE_ASSERT(ticket >= 0 && ticket < static_cast<int>(store_.size()));
     // Invalidate the ticket.
     store_[ticket].set_is_valid(false);
     // Visit all the tickets that depend on this one.

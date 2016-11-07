@@ -14,6 +14,7 @@ namespace drake {
 namespace systems {
 
 typedef int CacheTicket;
+constexpr int kNullCacheTicket = -1;
 
 namespace internal {
 

@@ -39,7 +39,11 @@ class DiagramContext : public Context<T> {
   /// Constructs a DiagramContext with the given @p num_subsystems, which is
   /// final: you cannot resize a DiagramContext after construction.
   explicit DiagramContext(const int num_subsystems)
-      : outputs_(num_subsystems), contexts_(num_subsystems) {}
+      : outputs_(num_subsystems),
+        contexts_(num_subsystems),
+        evaluation_freshness_tickets_(num_subsystems) {
+    Context<T>::BuildCacheTickets();
+  }
 
   /// Declares a new subsystem in the DiagramContext. Subsystems are identified
   /// by number. If the subsystem has already been declared, aborts.
@@ -52,6 +56,16 @@ class DiagramContext : public Context<T> {
     DRAKE_DEMAND(contexts_[index] == nullptr);
     DRAKE_DEMAND(outputs_[index] == nullptr);
     context->set_parent(this);
+
+    // Create a cache entry in the subsystem context that will be invalidated
+    // whenever any field in that context changes.
+    CacheTicket freshness_ticket =
+        context->CreateCacheEntry({context->get_context_ticket()});
+    evaluation_freshness_tickets_[index] = freshness_ticket;
+    context->InitCachedValue(freshness_ticket,
+                             std::make_unique<Value<bool>>(true));
+
+    // Take ownership of the context and the output.
     contexts_[index] = std::move(context);
     outputs_[index] = std::move(output);
   }
@@ -165,25 +179,33 @@ class DiagramContext : public Context<T> {
     }
   }
 
+  bool IsEvaluationFresh(SystemIndex index) const {
+    DRAKE_ASSERT(index >= 0 && index < num_subsystems());
+    const CacheTicket ticket = evaluation_freshness_tickets_[index];
+    return GetSubsystemContext(index)->GetCachedValue(ticket) != nullptr;
+  }
+
+  void MarkEvaluationFresh(SystemIndex index) const {
+    DRAKE_ASSERT(index >= 0 && index < num_subsystems());
+    const CacheTicket ticket = evaluation_freshness_tickets_[index];
+    GetSubsystemContext(index)->template SetCachedValue<bool>(ticket, true);
+  }
+
   int get_num_input_ports() const override {
     return static_cast<int>(input_ids_.size());
   }
 
-  void SetInputPort(int index, std::unique_ptr<InputPort> port) override {
-    DRAKE_ASSERT(index >= 0 && index < get_num_input_ports());
+  const State<T>& get_state() const override { return state_; }
+
+ protected:
+  void DoSetInputPort(int index, std::unique_ptr<InputPort> port) override {
     const PortIdentifier& id = input_ids_[index];
     SystemIndex system_index = id.first;
     PortIndex port_index = id.second;
     GetMutableSubsystemContext(system_index)
         ->SetInputPort(port_index, std::move(port));
-    // TODO(david-german-tri): Set invalidation callbacks.
   }
 
-  const State<T>& get_state() const override { return state_; }
-
-  State<T>* get_mutable_state() override { return &state_; }
-
- protected:
   DiagramContext<T>* DoClone() const override {
     DRAKE_ASSERT(contexts_.size() == outputs_.size());
     DiagramContext<T>* clone = new DiagramContext(num_subsystems());
@@ -213,10 +235,6 @@ class DiagramContext : public Context<T> {
     for (const PortIdentifier& id : input_ids_) {
       clone->ExportInput(id);
     }
-
-    // Make deep copies of everything else using the default copy constructors.
-    *clone->get_mutable_step_info() = this->get_step_info();
-
     return clone;
   }
 
@@ -245,6 +263,14 @@ class DiagramContext : public Context<T> {
   // The contexts are stored in SystemIndex order, and contexts_ is equal in
   // length to the number of subsystems specified at construction time.
   std::vector<std::unique_ptr<Context<T>>> contexts_;
+
+  // Cache tickets for each subsystem, which depend on the entire subsystem's
+  // context. If no context field has changed since the last time the
+  // subsystem's output has been computed, there is no need to recompute it,
+  // and IsEvaluationFresh will return true for that subsystem.
+  // Subsystem authors may also provide much more aggressive internal caching
+  // of their outputs, depending on the particulars of their computation.
+  std::vector<CacheTicket> evaluation_freshness_tickets_;
 
   // A map from the input ports of constituent systems, to the output ports of
   // the systems on which they depend.

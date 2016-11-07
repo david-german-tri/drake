@@ -639,13 +639,16 @@ class Diagram : public System<T>,
                           const PortIdentifier& id) const {
     const System<T>* const system = id.first;
     const int i = GetSystemIndexOrAbort(system);
-    SPDLOG_TRACE(log(), "Evaluating output for subsystem {}, port {}",
-                 system->GetPath(), id.second);
-    const Context<T>* subsystem_context = context.GetSubsystemContext(i);
-    SystemOutput<T>* subsystem_output = context.GetSubsystemOutput(i);
-    // TODO(david-german-tri): Once #2890 is resolved, only evaluate the
-    // particular port specified in id.second.
-    system->EvalOutput(*subsystem_context, subsystem_output);
+    if (!context.IsEvaluationFresh(i)) {
+      SPDLOG_TRACE(log(), "Evaluating output for subsystem {}, port {}",
+                   system->GetPath(), id.second);
+      const Context<T>* subsystem_context = context.GetSubsystemContext(i);
+      SystemOutput<T>* subsystem_output = context.GetSubsystemOutput(i);
+      // TODO(david-german-tri): Once #2890 is resolved, only evaluate the
+      // particular port specified in id.second.
+        system->EvalOutput(*subsystem_context, subsystem_output);
+        context.MarkEvaluationFresh(i);
+    }
   }
 
   // Returns the index of the given @p sys in the sorted order of this diagram,

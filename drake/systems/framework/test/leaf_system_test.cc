@@ -59,7 +59,7 @@ class TestSystem : public LeafSystem<double> {
 class LeafSystemTest : public ::testing::Test {
  protected:
   TestSystem system_;
-  LeafContext<double> context_;
+  LeafContext<double> context_{0 /* input ports*/};
 };
 
 // Tests that if no update events are configured, none are reported.

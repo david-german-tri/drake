@@ -29,11 +29,12 @@ constexpr double kTime = 12.0;
 
 class LeafContextTest : public ::testing::Test {
  protected:
+  LeafContextTest() : context_(kNumInputPorts) {}
+
   void SetUp() override {
     context_.set_time(kTime);
 
     // Input
-    context_.SetNumInputPorts(kNumInputPorts);
     for (int i = 0; i < kNumInputPorts; ++i) {
       auto port_data = std::make_unique<BasicVector<double>>(kInputSize[i]);
       auto port = std::make_unique<FreestandingInputPort>(std::move(port_data));
@@ -102,14 +103,8 @@ TEST_F(LeafContextTest, GetNumInputPorts) {
   ASSERT_EQ(kNumInputPorts, context_.get_num_input_ports());
 }
 
-TEST_F(LeafContextTest, ClearInputPorts) {
-  context_.ClearInputPorts();
-  EXPECT_EQ(0, context_.get_num_input_ports());
-}
-
 TEST_F(LeafContextTest, GetVectorInput) {
-  LeafContext<double> context;
-  context.SetNumInputPorts(2);
+  LeafContext<double> context(kNumInputPorts);
 
   // Add input port 0 to the context, but leave input port 1 uninitialized.
   std::unique_ptr<BasicVector<double>> vec(new BasicVector<double>(2));
@@ -128,8 +123,7 @@ TEST_F(LeafContextTest, GetVectorInput) {
 }
 
 TEST_F(LeafContextTest, GetAbstractInput) {
-  LeafContext<double> context;
-  context.SetNumInputPorts(2);
+  LeafContext<double> context(kNumInputPorts);
 
   // Add input port 0 to the context, but leave input port 1 uninitialized.
   std::unique_ptr<AbstractValue> value(new Value<std::string>("foo"));
@@ -260,7 +254,7 @@ TEST_F(LeafContextTest, SetTimeStateAndParametersFrom) {
   // Set up a target with the same geometry as the source, and no
   // interesting values.
   // In actual applications, System<T>::CreateDefaultContext does this.
-  LeafContext<AutoDiffXd> target;
+  LeafContext<AutoDiffXd> target(kNumInputPorts);
   target.set_continuous_state(std::make_unique<ContinuousState<AutoDiffXd>>(
       std::make_unique<BasicVector<AutoDiffXd>>(5),
       kGeneralizedPositionSize, kGeneralizedVelocitySize,
