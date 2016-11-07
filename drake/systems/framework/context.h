@@ -1,6 +1,7 @@
 #pragma once
 
 #include "drake/common/drake_throw.h"
+#include "drake/systems/framework/cache.h"
 #include "drake/systems/framework/input_port_evaluator_interface.h"
 #include "drake/systems/framework/state.h"
 #include "drake/systems/framework/system_input.h"
@@ -302,6 +303,11 @@ class Context {
     return context.GetInputPort(index);
   }
 
+ protected:
+  Cache& cache() const {
+    return cache_;
+  }
+
  private:
   // Current time and step information.
   StepInfo<T> step_info_;
@@ -310,6 +316,10 @@ class Context {
   // This pointer MUST be treated as a black box. If you call any substantive
   // methods on it, you are probably making a mistake.
   const Context<T>* parent_ = nullptr;
+
+  // The cache. The System may insert arbitrary key-value pairs, and configure
+  // invalidation on a per-entry basis.
+  mutable Cache cache_;
 };
 
 }  // namespace systems

@@ -63,7 +63,7 @@ class LeafContext : public Context<T> {
     // TODO(david-german-tri): Provide a notation for specifying context
     // dependencies as well, and provide automatic invalidation when the
     // context dependencies change.
-    return cache_.MakeCacheTicket(prerequisites);
+    return this->cache().MakeCacheTicket(prerequisites);
   }
 
   /// Stores the given @p value in the cache entry for the given @p ticket,
@@ -83,7 +83,7 @@ class LeafContext : public Context<T> {
   /// You have been warned.
   AbstractValue* InitCachedValue(CacheTicket ticket,
                                  std::unique_ptr<AbstractValue> value) const {
-    return cache_.Init(ticket, std::move(value));
+    return this->cache().Init(ticket, std::move(value));
   }
 
   /// Copies the given @p value into the cache entry for the given @p ticket.
@@ -92,13 +92,13 @@ class LeafContext : public Context<T> {
   /// @tparam V The type of the value to store.
   template <typename V>
   void SetCachedValue(CacheTicket ticket, const V& value) const {
-    cache_.Set<V>(ticket, value);
+    this->cache().template Set<V>(ticket, value);
   }
 
   // Returns the cached value for the given @p ticket, or nullptr if the
   // cache entry has been invalidated.
   const AbstractValue* GetCachedValue(CacheTicket ticket) const {
-    return cache_.Get(ticket);
+    return this->cache().Get(ticket);
   }
 
   // =========================================================================
@@ -164,7 +164,7 @@ class LeafContext : public Context<T> {
 
     // Make deep copies of everything else using the default copy constructors.
     *context->get_mutable_step_info() = this->get_step_info();
-    context->cache_ = this->cache_;
+    context->cache() = this->cache();
     return context;
   }
 
