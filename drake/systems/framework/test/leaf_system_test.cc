@@ -58,8 +58,10 @@ class TestSystem : public LeafSystem<double> {
 
 class LeafSystemTest : public ::testing::Test {
  protected:
+  const int kNumInputPorts = 0;
+  const int kNumOutputPorts = 0;
   TestSystem system_;
-  LeafContext<double> context_{0 /* input ports*/};
+  LeafContext<double> context_{kNumInputPorts, kNumOutputPorts};
 };
 
 // Tests that if no update events are configured, none are reported.

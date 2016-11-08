@@ -15,14 +15,16 @@ namespace systems {
 namespace internal {
 
 /// ContextCacheTickets is a container for cache tickets corresponding to
-/// Context fields and groups of fields. In the typical use case, no data will
-/// be stored in these caceh entries. They exist only so that other cache
+/// Context fields, groups of fields, and output ports. No data should be
+/// stored in these cache entries. They exist only so that other cache
 /// entries may depend on them.
 struct ContextCacheTickets {
   // time
   CacheTicket time_ticket{kNullCacheTicket};
   // input
   std::vector<CacheTicket> input_tickets;
+  //output
+  std::vector<CacheTicket> output_tickets;
   // continuous state
   CacheTicket generalized_position_ticket{kNullCacheTicket};
   CacheTicket generalized_velocity_ticket{kNullCacheTicket};
@@ -85,7 +87,7 @@ class Context {
 
   State<T>* get_mutable_state() {
     InvalidateState();
-    return const_cast<State<T>*>(&get_state());
+    return mutable_state();
   }
 
   /// Sets the continuous state to @p xc, deleting whatever was there before.
@@ -93,7 +95,7 @@ class Context {
   /// therefore invalidates the entire cache and generates completely new
   /// cache tickets for every cache field.
   void set_continuous_state(std::unique_ptr<ContinuousState<T>> xc) {
-    get_mutable_state()->set_continuous_state(std::move(xc));
+    mutable_state()->set_continuous_state(std::move(xc));
     BuildCacheTickets();
   }
 
@@ -104,7 +106,7 @@ class Context {
   /// with correspondingly less dramatic cache invalidation.
   ContinuousState<T>* get_mutable_continuous_state() {
     InvalidateContinuousState();
-    return get_mutable_state()->get_mutable_continuous_state();
+    return mutable_state()->get_mutable_continuous_state();
   }
 
   /// Returns a mutable pointer to the continuous state, devoid of second-order
@@ -133,7 +135,7 @@ class Context {
   /// difference state.
   DifferenceState<T>* get_mutable_difference_state() {
     InvalidateDifferenceState();
-    return get_mutable_state()->get_mutable_difference_state();
+    return mutable_state()->get_mutable_difference_state();
   }
 
   /// Returns a mutable pointer to element @p index of the difference state.
@@ -141,8 +143,7 @@ class Context {
   /// depend on that element of difference state.
   BasicVector<T>* get_mutable_difference_state(int index) {
     InvalidateDifferenceState(index);
-    DifferenceState<T>* xd =
-        get_mutable_state()->get_mutable_difference_state();
+    DifferenceState<T>* xd = mutable_state()->get_mutable_difference_state();
     return xd->get_mutable_difference_state(index);
   }
 
@@ -151,7 +152,7 @@ class Context {
   /// therefore invalidates the entire cache and generates completely new
   /// cache tickets for every cache field.
   void set_difference_state(std::unique_ptr<DifferenceState<T>> xd) {
-    get_mutable_state()->set_difference_state(std::move(xd));
+    mutable_state()->set_difference_state(std::move(xd));
     BuildCacheTickets();
   }
 
@@ -167,7 +168,7 @@ class Context {
   /// on modal state.
   ModalState* get_mutable_modal_state() {
     InvalidateModalState();
-    return get_mutable_state()->get_mutable_modal_state();
+    return mutable_state()->get_mutable_modal_state();
   }
 
   /// Returns a mutable pointer to element @p index of the modal state.
@@ -176,7 +177,7 @@ class Context {
   template <typename U>
   U& get_mutable_modal_state(int index) {
     InvalidateModalState(index);
-    ModalState* xm = get_mutable_state()->get_mutable_modal_state();
+    ModalState* xm = mutable_state()->get_mutable_modal_state();
     return xm->get_mutable_modal_state(index).GetMutableValue<U>();
   }
 
@@ -185,7 +186,7 @@ class Context {
   /// therefore invalidates the entire cache and generates completely new
   /// cache tickets for every cache field.
   void set_modal_state(std::unique_ptr<ModalState> xm) {
-    get_mutable_state()->set_modal_state(std::move(xm));
+    mutable_state()->set_modal_state(std::move(xm));
     BuildCacheTickets();
   }
 
@@ -224,6 +225,8 @@ class Context {
 
   /// Returns the number of input ports.
   virtual int get_num_input_ports() const = 0;
+  /// Returns the number of output ports.
+  virtual int get_num_output_ports() const = 0;
 
   /// Connects a FreestandingInputPort with the given @p value at the given
   /// @p index. Asserts if @p index is out of range.
@@ -316,7 +319,7 @@ class Context {
   }
 
   // =========================================================================
-  // Accessors and mutators for the Cache itself.
+  // Accessors and mutators for Cache entries and tickets.
 
   /// Reserves a cache entry with the given @p prerequisites on which it
   /// depends. Returns a ticket to identify the entry.
@@ -363,8 +366,60 @@ class Context {
     return this->cache().Get(ticket);
   }
 
-  // =========================================================================
-  // Accessors for cache tickets.
+  /// Declares that the output port at @p index should only be invalidated when
+  /// one of the cache entries in @p prerequisites changes. If an actual data
+  /// dependency of the output port is not specified in @p prerequisites,
+  /// downstream Systems that consume the output may read a stale value, leading
+  /// to incorrect calculations that will be a nightmare to debug. Thus, it is
+  /// generally safest not to call this function, but it might be a useful
+  /// escape hatch for some performance problems.
+  void SetOutputPortDependencies(int index,
+                                 const std::set<CacheTicket>& prerequisites) {
+    DRAKE_ASSERT(index >= 0 && index < get_num_output_ports());
+    const CacheTicket ticket = CreateCacheEntry(prerequisites);
+    cache_tickets_.output_tickets[index] = ticket;
+    InitCachedValue(ticket, std::make_unique<Value<bool>>(false));
+    this->cache().Invalidate(ticket);
+  }
+
+  virtual void MarkOutputPortFresh(int index) const {
+    DRAKE_ASSERT(index >= 0 && index < get_num_output_ports());
+    SetCachedValue<bool>(cache_tickets_.output_tickets[index], true);
+  }
+
+  void MarkOutputPortsFresh() const {
+    for (int i = 0; i < get_num_output_ports(); ++i) {
+      MarkOutputPortFresh(i);
+    }
+  }
+
+  virtual bool IsOutputPortFresh(int index) const {
+    DRAKE_ASSERT(index >= 0 && index < get_num_output_ports());
+    return GetCachedValue(cache_tickets_.output_tickets[index]) != nullptr;
+  }
+
+  bool AreOutputPortsFresh() const {
+    for (int i = 0; i < get_num_output_ports(); ++i) {
+      if (!IsOutputPortFresh(i)) return false;
+    }
+    return true;
+  }
+
+  // TODO - explain why const
+  void InvalidateInputs() const {
+    InvalidateInputsInternal();
+    MaybeInvalidateOutputs();
+  }
+
+  // TODO - explain why const
+  void InvalidateInput(int index) const {
+    InvalidateInputInternal(index);
+    MaybeInvalidateOutputs();
+  }
+
+  /// TODO(david-german-tri): comment.
+  virtual void PropagateInvalidOutputs(int context_index,
+                                       int port_index) const = 0;
 
   /// Returns a cache ticket for the whole context. If a computation should
   /// be invalidated whenever anything at all in the Context changes, store
@@ -386,6 +441,11 @@ class Context {
     *clone->get_mutable_step_info() = this->get_step_info();
     clone->cache_ = this->cache_;
     clone->cache_tickets_ = this->cache_tickets_;
+    // We don't know how the cloned ticket will be wired, so preemptively
+    // invalidate all its outputs.
+    for (const CacheTicket& ticket : clone->cache_tickets_.output_tickets) {
+      clone->cache_.Invalidate(ticket);
+    }
     return clone;
   }
 
@@ -399,17 +459,25 @@ class Context {
     // TODO(david-german-tri): Parameters.
   }
 
-  /// Declares that @p parent is the context of the enclosing Diagram. The
-  /// enclosing Diagram context is needed to evaluate inputs recursively.
+  /// Declares that @p parent is the context of the enclosing Diagram, and
+  /// this Context's unique identifier within the parent context is @p index.
+  /// The enclosing Diagram context is needed to evaluate inputs recursively.
   /// Aborts if the parent has already been set to something else.
   ///
   /// This is a dangerous implementation detail. Conceptually, a Context
   /// ought to be completely ignorant of its parent Context. However, we
-  /// need this pointer so that we can cause our inputs to be evaluated in
-  /// EvalInputPort.  See https://github.com/RobotLocomotion/drake/pull/3455.
-  void set_parent(const Context<T>* parent) {
+  /// need this pointer to interact with downstream systems in two special cases,
+  /// thanks to our pull-based evaluation architecture:
+  ///
+  /// - To cause our inputs to be evaluated in EvalInputPort.
+  /// - To cause our outputs to be invalidated in MaybeInvalidateOutputs.
+  ///
+  /// See https://github.com/RobotLocomotion/drake/pull/3455 for more info.
+  void set_parent_and_index(const Context<T>* parent, int index) {
     DRAKE_DEMAND(parent_ == nullptr || parent_ == parent);
+    DRAKE_DEMAND(index >= 0);
     parent_ = parent;
+    system_index_ = index;
   }
 
   // Throws an exception unless the given @p descriptor matches this context.
@@ -460,63 +528,63 @@ class Context {
     return cache_;
   }
 
+  // =========================================================================
+  // Cache invalidation methods.
+  // These methods mark a given Context field as invalid, which recursively
+  // propagates to all cached values that depend on that Context field.
+
   void InvalidateEverything() {
-    InvalidateTime();
-    InvalidateInputs();
-    InvalidateState();
+    InvalidateEverythingInternal();
+    MaybeInvalidateOutputs();
   }
 
   void InvalidateTime() {
-    cache_.Invalidate(cache_tickets_.time_ticket);
-  }
-
-
-  // TODO - explain why const
-  void InvalidateInput(int index) const {
-    cache_.Invalidate(cache_tickets_.input_tickets[index]);
-  }
-
-  // TODO - explain why const
-  void InvalidateInputs() const {
-    for (const CacheTicket& ticket : cache_tickets_.input_tickets) {
-      cache_.Invalidate(ticket);
-    }
+    InvalidateTimeInternal();
+    MaybeInvalidateOutputs();
   }
 
   void InvalidateState() {
-    InvalidateContinuousState();
-    InvalidateDifferenceState();
-    InvalidateModalState();
+    InvalidateStateInternal();
+    MaybeInvalidateOutputs();
   }
 
   void InvalidateContinuousState() {
-    cache_.Invalidate(cache_tickets_.generalized_position_ticket);
-    cache_.Invalidate(cache_tickets_.generalized_velocity_ticket);
-    cache_.Invalidate(cache_tickets_.misc_continuous_state_ticket);
+    InvalidateContinuousStateInternal();
+    MaybeInvalidateOutputs();
   }
 
   void InvalidateDifferenceState() {
-    for (const CacheTicket& ticket : cache_tickets_.difference_state_tickets) {
-      cache_.Invalidate(ticket);
-    }
+    InvalidateDifferenceStateInternal();
+    MaybeInvalidateOutputs();
   }
 
   void InvalidateDifferenceState(int index) {
-    cache_.Invalidate(cache_tickets_.difference_state_tickets[index]);
+    InvalidateDifferenceStateInternal(index);
+    MaybeInvalidateOutputs();
   }
 
   void InvalidateModalState() {
-    for (const CacheTicket& ticket : cache_tickets_.modal_state_tickets) {
-      cache_.Invalidate(ticket);
-    }
+    InvalidateModalStateInternal();
+    MaybeInvalidateOutputs();
   }
 
   void InvalidateModalState(int index) {
-    cache_.Invalidate(cache_tickets_.modal_state_tickets[index]);
+    InvalidateModalStateInternal(index);
+    MaybeInvalidateOutputs();
+  }
+
+  void MaybeInvalidateOutputs() const {
+    for (int i = 0; i < get_num_output_ports(); ++i) {
+      if (GetCachedValue(cache_tickets_.output_tickets[i]) == nullptr) {
+        if (parent_ != nullptr) {
+          parent_->PropagateInvalidOutputs(system_index_, i);
+        }
+      }
+    }
   }
 
   void BuildCacheTickets() {
-    InvalidateEverything();
+    InvalidateEverythingInternal();
     internal::ContextCacheTickets& tix = cache_tickets_;
     // Time.
     tix.time_ticket = cache_.MakeCacheTicket({});
@@ -567,22 +635,93 @@ class Context {
     // All context.
     tix.context_ticket = cache_.MakeCacheTicket(
         {tix.time_ticket, tix.inputs_ticket, tix.state_ticket});
+
+    // Output.
+    tix.output_tickets.clear();
+    tix.output_tickets.resize(get_num_output_ports());
+    for (int i = 0; i < get_num_output_ports(); ++i) {
+      // Configure the default invalidation rules.
+      SetOutputPortDependencies(i, {tix.context_ticket});
+    }
+
     // TODO(david-german-tri): Parameters.
   }
 
  private:
+  // TODO(david-german-tri): Comment this toxic method - why does it use
+  // const_cast, and why doesn't it invalidate?
+  State<T>* mutable_state() {
+    return const_cast<State<T>*>(&get_state());
+  }
+
+  void InvalidateEverythingInternal() {
+    InvalidateTimeInternal();
+    InvalidateInputsInternal();
+    InvalidateStateInternal();
+  }
+
+  void InvalidateInputsInternal() const {
+    for (const CacheTicket& ticket : cache_tickets_.input_tickets) {
+      cache_.Invalidate(ticket);
+    }
+  }
+
+  void InvalidateInputInternal(int index) const {
+    cache_.Invalidate(cache_tickets_.input_tickets[index]);
+  }
+
+  void InvalidateTimeInternal() {
+    cache_.Invalidate(cache_tickets_.time_ticket);
+  }
+
+  void InvalidateStateInternal() {
+    InvalidateContinuousStateInternal();
+    InvalidateDifferenceStateInternal();
+    InvalidateModalStateInternal();
+  }
+
+  void InvalidateContinuousStateInternal() {
+    cache_.Invalidate(cache_tickets_.generalized_position_ticket);
+    cache_.Invalidate(cache_tickets_.generalized_velocity_ticket);
+    cache_.Invalidate(cache_tickets_.misc_continuous_state_ticket);
+  }
+
+  void InvalidateDifferenceStateInternal() {
+    for (const CacheTicket& ticket : cache_tickets_.difference_state_tickets) {
+      cache_.Invalidate(ticket);
+    }
+  }
+
+  void InvalidateDifferenceStateInternal(int index) {
+    cache_.Invalidate(cache_tickets_.difference_state_tickets[index]);
+  }
+
+  void InvalidateModalStateInternal() {
+    for (const CacheTicket& ticket : cache_tickets_.modal_state_tickets) {
+      cache_.Invalidate(ticket);
+    }
+  }
+
+  void InvalidateModalStateInternal(int index) {
+    cache_.Invalidate(cache_tickets_.modal_state_tickets[index]);
+  }
+
   // Current time and step information.
   StepInfo<T> step_info_;
 
-  // The context of the enclosing Diagram, used in EvalInputPort.
-  // This pointer MUST be treated as a black box. If you call any substantive
-  // methods on it, you are probably making a mistake.
+  // The context of the enclosing Diagram, used in EvalInputPort, and in
+  // MaybeInvalidateOutputs. Think very, very carefully before adding any new
+  // uses of this member variable. It is a dangerous hack, but a necessary one
+  // for https://github.com/RobotLocomotion/drake/pull/3455.
   const Context<T>* parent_ = nullptr;
+  // The index of this Context within the parent.
+  int system_index_ = -1;
 
   // The cache. The System may insert arbitrary key-value pairs, and configure
   // invalidation on a per-entry basis.
   mutable Cache cache_;
 
+  // Cache tickets that represent actual Context and Output fields.
   internal::ContextCacheTickets cache_tickets_;
 };
 

@@ -19,6 +19,7 @@ namespace drake {
 namespace systems {
 
 constexpr int kNumInputPorts = 2;
+constexpr int kNumOutputPorts = 1;
 constexpr int kInputSize[kNumInputPorts] = {1, 2};
 constexpr int kContinuousStateSize = 5;
 constexpr int kGeneralizedPositionSize = 2;
@@ -29,7 +30,7 @@ constexpr double kTime = 12.0;
 
 class LeafContextTest : public ::testing::Test {
  protected:
-  LeafContextTest() : context_(kNumInputPorts) {}
+  LeafContextTest() : context_(kNumInputPorts, kNumOutputPorts) {}
 
   void SetUp() override {
     context_.set_time(kTime);
@@ -104,7 +105,7 @@ TEST_F(LeafContextTest, GetNumInputPorts) {
 }
 
 TEST_F(LeafContextTest, GetVectorInput) {
-  LeafContext<double> context(kNumInputPorts);
+  LeafContext<double> context(kNumInputPorts, kNumOutputPorts);
 
   // Add input port 0 to the context, but leave input port 1 uninitialized.
   std::unique_ptr<BasicVector<double>> vec(new BasicVector<double>(2));
@@ -123,7 +124,7 @@ TEST_F(LeafContextTest, GetVectorInput) {
 }
 
 TEST_F(LeafContextTest, GetAbstractInput) {
-  LeafContext<double> context(kNumInputPorts);
+  LeafContext<double> context(kNumInputPorts, kNumOutputPorts);
 
   // Add input port 0 to the context, but leave input port 1 uninitialized.
   std::unique_ptr<AbstractValue> value(new Value<std::string>("foo"));
@@ -254,7 +255,7 @@ TEST_F(LeafContextTest, SetTimeStateAndParametersFrom) {
   // Set up a target with the same geometry as the source, and no
   // interesting values.
   // In actual applications, System<T>::CreateDefaultContext does this.
-  LeafContext<AutoDiffXd> target(kNumInputPorts);
+  LeafContext<AutoDiffXd> target(kNumInputPorts, kNumOutputPorts);
   target.set_continuous_state(std::make_unique<ContinuousState<AutoDiffXd>>(
       std::make_unique<BasicVector<AutoDiffXd>>(5),
       kGeneralizedPositionSize, kGeneralizedVelocitySize,

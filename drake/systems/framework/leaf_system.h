@@ -50,7 +50,7 @@ class LeafSystem : public System<T> {
 
   std::unique_ptr<Context<T>> CreateDefaultContext() const override {
     auto context = std::make_unique<LeafContext<T>>(
-        this->get_num_input_ports());
+        this->get_num_input_ports(), this->get_num_output_ports());
     // Reserve continuous state via delegation to subclass.
     context->set_continuous_state(this->AllocateContinuousState());
     // Reserve discrete state via delegation to subclass.

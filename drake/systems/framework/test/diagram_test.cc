@@ -367,12 +367,12 @@ class DiagramOfDiagramsTest : public ::testing::Test {
 // Tests that a diagram composed of diagrams can be evaluated.
 TEST_F(DiagramOfDiagramsTest, EvalOutput) {
   diagram_->EvalOutput(*context_, output_.get());
-  // The outputs of subsystem0_ are:
+  // The outputs of subdiagram0_ are:
   //   output0 = 8 + 64 + 512 = 584
   //   output1 = output0 + 8 + 64 = 656
   //   output2 = 9 (state of integrator1_)
 
-  // So, the outputs of subsytem1_, and thus of the whole diagram, are:
+  // So, the outputs of subdiagram1_, and thus of the whole diagram, are:
   //   output0 = 584 + 656 + 9 = 1249
   //   output1 = output0 + 584 + 656 = 2489
   //   output2 = 81 (state of integrator1_)

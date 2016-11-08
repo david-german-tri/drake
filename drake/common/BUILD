@@ -12,6 +12,7 @@ cc_library(
     srcs = [
         "drake_assert.cc",
         "drake_throw.cc",
+        "id.cc"
         "text_logging.cc",
     ],
     hdrs = [
@@ -24,6 +25,7 @@ cc_library(
         "drake_gcc48.h",
         "eigen_stl_types.h",
         "eigen_types.h",
+        "id.h"
         "number_traits.h",
     ],
     deps = ["@eigen//:eigen", "@spdlog//:spdlog"],

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "drake/common/text_logging.h"
 #include "drake/systems/analysis/integrator_base.h"
 
 namespace drake {
@@ -55,10 +56,7 @@ class RungeKutta2Integrator : public IntegratorBase<T> {
  */
 template <class T>
 bool RungeKutta2Integrator<T>::DoStep(const T& dt) {
-  // Find the continuous state xc within the Context, just once.
   auto context = IntegratorBase<T>::get_mutable_context();
-  VectorBase<T>* xc = context->get_mutable_continuous_state_vector();
-
   // TODO(sherm1) This should be calculating into the cache so that
   // Publish() doesn't have to recalculate if it wants to output derivatives.
   IntegratorBase<T>::get_system().EvalTimeDerivatives(
@@ -66,10 +64,14 @@ bool RungeKutta2Integrator<T>::DoStep(const T& dt) {
 
   // First stage is an explicit Euler step:
   // xc(t+h) = xc(t) + dt * xcdot(t, xc(t), u(t))
-  const auto& xcdot0 = derivs0_->get_vector();
-  xc->PlusEqScaled(dt, xcdot0);  // xc += dt * xcdot0
-  T t = IntegratorBase<T>::get_context().get_time() + dt;
-  IntegratorBase<T>::get_mutable_context()->set_time(t);
+  {
+    log()->info("RK2 stage 1");
+    VectorBase<T>* xc = context->get_mutable_continuous_state_vector();
+    const auto& xcdot0 = derivs0_->get_vector();
+    xc->PlusEqScaled(dt, xcdot0);  // xc += dt * xcdot0
+    T t = IntegratorBase<T>::get_context().get_time() + dt;
+    IntegratorBase<T>::get_mutable_context()->set_time(t);
+  }
 
   // use derivative at t+dt
   IntegratorBase<T>::get_system().EvalTimeDerivatives(
@@ -77,8 +79,13 @@ bool RungeKutta2Integrator<T>::DoStep(const T& dt) {
   const auto& xcdot1 = derivs1_->get_vector();
 
   // TODO(sherm1) Use better operators when available.
-  xc->PlusEqScaled(dt * 0.5, xcdot1);
-  xc->PlusEqScaled(-dt * 0.5, xcdot0);
+  {
+    log()->info("RK2 stage 2");
+    VectorBase<T>* xc = context->get_mutable_continuous_state_vector();
+    const auto& xcdot0 = derivs0_->get_vector();
+    xc->PlusEqScaled(dt * 0.5, xcdot1);
+    xc->PlusEqScaled(-dt * 0.5, xcdot0);
+  }
 
   IntegratorBase<T>::UpdateStatistics(dt);
 

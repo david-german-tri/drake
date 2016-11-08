@@ -27,8 +27,9 @@ namespace systems {
 template <typename T>
 class LeafContext : public Context<T> {
  public:
-  explicit LeafContext(int num_input_ports)
-      : inputs_(num_input_ports) {
+  LeafContext(int num_input_ports, int num_output_ports)
+      : inputs_(num_input_ports),
+        num_output_ports_(num_output_ports){
     Context<T>::BuildCacheTickets();
   }
 
@@ -38,12 +39,11 @@ class LeafContext : public Context<T> {
     return static_cast<int>(inputs_.size());
   }
 
-  const State<T>& get_state() const override { return state_; }
-
- protected:
-  void DoSetInputPort(int index, std::unique_ptr<InputPort> port) override {
-    inputs_[index] = std::move(port);
+  int get_num_output_ports() const override {
+    return num_output_ports_;
   }
+
+  const State<T>& get_state() const override { return state_; }
 
   // =========================================================================
   // Accessors and Mutators for Parameters.
@@ -71,10 +71,24 @@ class LeafContext : public Context<T> {
     return parameters_->get_mutable_numeric_parameter(index);
   }
 
+  // =========================================================================
+  // Miscellaneous public methods.
+
+
+  void PropagateInvalidOutputs(int context_index,
+                               int port_index) const override {
+    DRAKE_ABORT_MSG("Leaf systems should never be asked to propagate.");
+  }
+
  protected:
+  void DoSetInputPort(int index, std::unique_ptr<InputPort> port) override {
+    inputs_[index] = std::move(port);
+  }
+
   /// The caller owns the returned memory.
   Context<T>* DoClone() const override {
-    LeafContext<T>* clone = new LeafContext<T>(get_num_input_ports());
+    LeafContext<T>* clone = new LeafContext<T>(get_num_input_ports(),
+                                               get_num_output_ports());
 
     // Make a deep copy of the continuous state using BasicVector::Clone().
     if (this->get_continuous_state() != nullptr) {
@@ -93,7 +107,7 @@ class LeafContext : public Context<T> {
     clone->set_modal_state(get_state().get_modal_state()->Clone());
 
     // Make deep copies of the parameters.
-    context->set_parameters(parameters_->Clone());
+    clone->set_parameters(parameters_->Clone());
 
     // Make deep copies of the inputs into FreestandingInputPorts.
     // TODO(david-german-tri): Preserve version numbers as well.
@@ -123,6 +137,9 @@ class LeafContext : public Context<T> {
 
   // The external inputs to the System.
   std::vector<std::unique_ptr<InputPort>> inputs_;
+
+  // The number of output ports of the System.
+  int num_output_ports_{0};
 
   // The internal state of the System.
   State<T> state_;

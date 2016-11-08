@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "drake/common/text_logging.h"
 #include "drake/systems/framework/basic_vector.h"
 #include "drake/systems/framework/context.h"
 #include "drake/systems/framework/diagram_continuous_state.h"
@@ -40,8 +41,7 @@ class DiagramContext : public Context<T> {
   /// final: you cannot resize a DiagramContext after construction.
   explicit DiagramContext(const int num_subsystems)
       : outputs_(num_subsystems),
-        contexts_(num_subsystems),
-        evaluation_freshness_tickets_(num_subsystems) {
+        contexts_(num_subsystems) {
     Context<T>::BuildCacheTickets();
   }
 
@@ -55,15 +55,7 @@ class DiagramContext : public Context<T> {
     DRAKE_DEMAND(index >= 0 && index < num_subsystems());
     DRAKE_DEMAND(contexts_[index] == nullptr);
     DRAKE_DEMAND(outputs_[index] == nullptr);
-    context->set_parent(this);
-
-    // Create a cache entry in the subsystem context that will be invalidated
-    // whenever any field in that context changes.
-    CacheTicket freshness_ticket =
-        context->CreateCacheEntry({context->get_context_ticket()});
-    evaluation_freshness_tickets_[index] = freshness_ticket;
-    context->InitCachedValue(freshness_ticket,
-                             std::make_unique<Value<bool>>(true));
+    context->set_parent_and_index(this, index);
 
     // Take ownership of the context and the output.
     contexts_[index] = std::move(context);
@@ -80,6 +72,18 @@ class DiagramContext : public Context<T> {
     const SystemIndex system_index = id.first;
     DRAKE_DEMAND(contexts_[system_index] != nullptr);
     input_ids_.emplace_back(id);
+  }
+
+  /// Declares that a particular output port of a particular subsystem is an
+  /// output of the entire Diagram that allocates this Context. Aborts if the
+  /// subsystem has not been added to the DiagramContext.
+  ///
+  /// User code should not call this method. It is for use during Diagram
+  /// context allocation only.
+  void ExportOutput(const PortIdentifier& id) {
+    const SystemIndex system_index = id.first;
+    DRAKE_DEMAND(contexts_[system_index] != nullptr);
+    output_ids_.emplace_back(id);
   }
 
   /// Declares that the output port specified by @p src is connected to the
@@ -107,8 +111,9 @@ class DiagramContext : public Context<T> {
     auto input_port = std::make_unique<DependentInputPort>(output_port);
     dest_context->SetInputPort(dest_port_index, std::move(input_port));
 
-    // Remember the graph structure. We need it in DoClone().
+    // Remember the graph structure.
     dependency_graph_[dest] = src;
+    inverse_dependency_graph_[src].push_back(dest);
   }
 
   /// Generates the state vector for the entire diagram by wrapping the states
@@ -179,20 +184,45 @@ class DiagramContext : public Context<T> {
     }
   }
 
+  void MarkOutputPortFresh(int port_index) const override {
+    DRAKE_ASSERT(port_index >= 0 && port_index < get_num_output_ports());
+    const SystemIndex subsystem_index = output_ids_[port_index].first;
+    const PortIndex subsystem_port_index = output_ids_[port_index].second;
+    contexts_[subsystem_index]->MarkOutputPortFresh(subsystem_port_index);
+  }
+
+  bool IsOutputPortFresh(int port_index) const override {
+    DRAKE_ASSERT(port_index >= 0 && port_index < get_num_output_ports());
+    const SystemIndex subsystem_index = output_ids_[port_index].first;
+    const PortIndex subsystem_port_index = output_ids_[port_index].second;
+    log()->info("In DiagramContext<T>::IsOutputPortFresh");
+    return contexts_[subsystem_index]->IsOutputPortFresh(subsystem_port_index);
+  }
+
   bool IsEvaluationFresh(SystemIndex index) const {
     DRAKE_ASSERT(index >= 0 && index < num_subsystems());
-    const CacheTicket ticket = evaluation_freshness_tickets_[index];
-    return GetSubsystemContext(index)->GetCachedValue(ticket) != nullptr;
+    return GetSubsystemContext(index)->AreOutputPortsFresh();
   }
 
   void MarkEvaluationFresh(SystemIndex index) const {
     DRAKE_ASSERT(index >= 0 && index < num_subsystems());
-    const CacheTicket ticket = evaluation_freshness_tickets_[index];
-    GetSubsystemContext(index)->template SetCachedValue<bool>(ticket, true);
+    GetSubsystemContext(index)->MarkOutputPortsFresh();
+  }
+
+  /// Notifies contexts that depend on the output port @p port_index of the
+  /// system at @p system_index that the contents of that port are no
+  /// longer valid. This may provoke a long, recursive chain of invalidation.
+  void PropagateInvalidOutputs(int system_index,
+                               int port_index) const override {
+    // TODO(david-german-tri): What goes here??
   }
 
   int get_num_input_ports() const override {
     return static_cast<int>(input_ids_.size());
+  }
+
+  int get_num_output_ports() const override {
+    return static_cast<int>(output_ids_.size());
   }
 
   const State<T>& get_state() const override { return state_; }
@@ -256,6 +286,7 @@ class DiagramContext : public Context<T> {
   }
 
   std::vector<PortIdentifier> input_ids_;
+  std::vector<PortIdentifier> output_ids_;
 
   // The outputs are stored in SystemIndex order, and outputs_ is equal in
   // length to the number of subsystems specified at construction time.
@@ -264,17 +295,14 @@ class DiagramContext : public Context<T> {
   // length to the number of subsystems specified at construction time.
   std::vector<std::unique_ptr<Context<T>>> contexts_;
 
-  // Cache tickets for each subsystem, which depend on the entire subsystem's
-  // context. If no context field has changed since the last time the
-  // subsystem's output has been computed, there is no need to recompute it,
-  // and IsEvaluationFresh will return true for that subsystem.
-  // Subsystem authors may also provide much more aggressive internal caching
-  // of their outputs, depending on the particulars of their computation.
-  std::vector<CacheTicket> evaluation_freshness_tickets_;
-
   // A map from the input ports of constituent systems, to the output ports of
   // the systems on which they depend.
   std::map<PortIdentifier, PortIdentifier> dependency_graph_;
+
+  // A map from the output ports of constituent systems, to the input ports of
+  // the systems on which they depend.
+  std::map<PortIdentifier, std::vector<PortIdentifier>>
+  inverse_dependency_graph_;
 
   // The internal state of the System.
   State<T> state_;

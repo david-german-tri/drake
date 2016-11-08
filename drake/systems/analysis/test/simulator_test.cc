@@ -198,6 +198,7 @@ GTEST_TEST(SimulatorTest, ControlledSpringMass) {
 
   PidControlledSpringMassSystem<double> spring_mass(kSpring, kMass, kp, ki, kd,
                                                     x_target);
+  spring_mass.set_name("ControlledSpringMass");
   Simulator<double> simulator(spring_mass);  // Use default Context.
 
   // Sets initial conditions to zero.

@@ -59,14 +59,14 @@ class ExplicitEulerIntegrator : public IntegratorBase<T> {
  */
 template <class T>
 bool ExplicitEulerIntegrator<T>::DoStep(const T& dt) {
-  // Find the continuous state xc within the Context, just once.
-  auto context = IntegratorBase<T>::get_mutable_context();
-  VectorBase<T>* xc = context->get_mutable_continuous_state_vector();
-
   // TODO(sherm1) This should be calculating into the cache so that
   // Publish() doesn't have to recalculate if it wants to output derivatives.
   IntegratorBase<T>::get_system().EvalTimeDerivatives(
       IntegratorBase<T>::get_context(), derivs_.get());
+
+  // Find the continuous state xc within the Context, just once.
+  auto context = IntegratorBase<T>::get_mutable_context();
+  VectorBase<T>* xc = context->get_mutable_continuous_state_vector();
 
   // Compute derivative and update configuration and velocity.
   // xc(t+h) = xc(t) + dt * xcdot(t, xc(t), u(t))

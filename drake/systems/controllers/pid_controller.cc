@@ -31,11 +31,17 @@ PidController<T>::PidController(const VectorX<T>& Kp, const VectorX<T>& Ki,
 
   DiagramBuilder<T> builder;
   pass_through_ = builder.AddSystem(make_unique<PassThrough<T>>(size));
+  pass_through_->set_name("Pass Through");
   proportional_gain_ = builder.AddSystem(make_unique<Gain<T>>(Kp));
+  proportional_gain_->set_name("Kp");
   integral_gain_ = builder.AddSystem(make_unique<Gain<T>>(Ki));
+  integral_gain_->set_name("Ki");
   derivative_gain_ = builder.AddSystem(make_unique<Gain<T>>(Kd));
+  derivative_gain_->set_name("Kd");
   integrator_ = builder.AddSystem(make_unique<Integrator<T>>(size));
+  integrator_->set_name("Integrator");
   adder_ = builder.AddSystem(make_unique<Adder<T>>(3 /* inputs */, size));
+  adder_->set_name("Adder");
 
   // Input 0 connects to the proportional and integral components.
   builder.ExportInput(pass_through_->get_input_port(0));

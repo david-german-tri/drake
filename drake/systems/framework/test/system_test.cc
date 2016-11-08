@@ -121,8 +121,10 @@ class TestSystem : public System<double> {
 
 class SystemTest : public ::testing::Test {
  protected:
+  const int kNumInputPorts = 0;
+  const int kNumOutputPorts = 0;
   TestSystem system_;
-  LeafContext<double> context_{0 /* input ports */};
+  LeafContext<double> context_{kNumInputPorts, kNumOutputPorts};
 };
 
 TEST_F(SystemTest, MapVelocityToConfigurationDerivatives) {
@@ -266,7 +268,7 @@ class ValueIOTestSystem : public System<double> {
 
   std::unique_ptr<Context<double>> CreateDefaultContext() const override {
     auto context = std::make_unique<LeafContext<double>>(
-        this->get_num_input_ports());
+        this->get_num_input_ports(), this->get_num_output_ports());
     return std::unique_ptr<Context<double>>(context.release());
   }
 

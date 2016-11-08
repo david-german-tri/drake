@@ -14,6 +14,7 @@ set(sources
   ${drake_path_cc}
   drake_throw.cc
   functional_form.cc
+  id.cc
   nice_type_name.cc
   polynomial.cc
   symbolic_environment.cc
@@ -42,6 +43,7 @@ set(installed_headers
   eigen_stl_types.h
   eigen_types.h
   functional_form.h
+  id.h
   nice_type_name.h
   number_traits.h
   polynomial.h

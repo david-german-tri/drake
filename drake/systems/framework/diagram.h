@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "drake/common/drake_assert.h"
+#include "drake/common/id.h"
 #include "drake/common/text_logging.h"
 #include "drake/systems/framework/cache.h"
 #include "drake/systems/framework/diagram_context.h"
@@ -196,9 +197,12 @@ class Diagram : public System<T>,
                        ConvertToContextPortIdentifier(dest));
     }
 
-    // Declare the Diagram-external inputs.
+    // Declare the Diagram-external inputs and outputs.
     for (const PortIdentifier& id : input_port_ids_) {
       context->ExportInput(ConvertToContextPortIdentifier(id));
+    }
+    for (const PortIdentifier& id : output_port_ids_) {
+      context->ExportOutput(ConvertToContextPortIdentifier(id));
     }
 
     context->MakeState();
@@ -628,27 +632,25 @@ class Diagram : public System<T>,
 
   // Evaluates the value of the output port with the given @p id in the given
   // @p context.
-  //
-  // TODO(david-german-tri): Add Diagram-level cache entries to keep track of
-  // whether a given output port has already been evaluated.  Right now, we
-  // are recomputing every intermediate output to satisfy every system that
-  // depends on it, recursively. This is O(N^2 * M), where M is the number of
-  // output ports the Diagram exposes, and N is the number of intermediate
-  // output ports the Diagram contains.
   void EvaluateOutputPort(const DiagramContext<T>& context,
                           const PortIdentifier& id) const {
     const System<T>* const system = id.first;
     const int i = GetSystemIndexOrAbort(system);
+    const Context<T>* subsystem_context = context.GetSubsystemContext(i);
+    SystemOutput<T>* subsystem_output = context.GetSubsystemOutput(i);
     if (!context.IsEvaluationFresh(i)) {
       SPDLOG_TRACE(log(), "Evaluating output for subsystem {}, port {}",
                    system->GetPath(), id.second);
-      const Context<T>* subsystem_context = context.GetSubsystemContext(i);
-      SystemOutput<T>* subsystem_output = context.GetSubsystemOutput(i);
       // TODO(david-german-tri): Once #2890 is resolved, only evaluate the
       // particular port specified in id.second.
         system->EvalOutput(*subsystem_context, subsystem_output);
         context.MarkEvaluationFresh(i);
+    } else {
+      log()->info("{}: cache hit for subsystem {}, port {}!", context.get_time(), system->GetPath(), id.second);
     }
+    std::ostringstream os;
+    os << *subsystem_output->get_vector_data(id.second);
+    log()->info("Value for {} is: {}", system->GetPath(), os.str());
   }
 
   // Returns the index of the given @p sys in the sorted order of this diagram,
