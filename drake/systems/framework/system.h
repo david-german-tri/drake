@@ -155,32 +155,86 @@ class System {
   /// Evaluates to `true` if any of the inputs to the system is directly
   /// fed through to any of its outputs and `false` otherwise.
   ///
+  bool HasAnyDirectFeedthrough() const {
+    for (int i = 0; i < get_num_output_ports(); ++i) {
+      if (HasDirectFeedthrough(i)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Returns true if there is direct-feedthrough from any input port to the
+  /// given @p output_port, and false otherwise.
+  bool HasDirectFeedthrough(int output_port) const {
+    DRAKE_ASSERT(output_port > 0 && output_port < get_num_output_ports());
+    for (int i = 0; i < get_num_input_ports(); ++i) {
+      if (HasDirectFeedthrough(i, output_port)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Returns true if there is direct-feedthrough from the given @p input_port
+  /// to the given @p output_port, and false otherwise.
+  ///
   /// By default we assume that there is direct feedthrough of values from
   /// every input port to every output port. This is a conservative assumption
   /// that ensures we detect and can prevent the formation of algebraic loops
-  /// (implicit computations) in system diagrams. Any System for which none of
-  /// the input ports ever feeds through to any of the output ports should
-  /// override this method to return false.
-  virtual bool HasAnyDirectFeedthrough() const {
-    for (int i = 0; i < get_num_output_ports(); ++i) {
-      if (has_direct_feedthrough(i)) {
-        return true;
-      }
-    }
-    return false;
-  }
+  /// (implicit computations) in system diagrams. Systems which do not have
+  /// direct feedthrough may override that assumption in two ways:
+  ///
+  /// - Override DoToSymbolic, allowing this function to infer the sparsity
+  ///   from the symbolic equations. This method is preferred for systems that
+  ///   have a symbolic form.
+  ///
+  ///   Important question for soonho-tri: Can we safely assume that the
+  ///   sparsity suggested by DoToSymbolic is not Context-dependent?
+  ///   DO NOT MERGE until this is clarified!
+  ///
+  /// - Override this function directly, reporting manual sparsity. This method
+  ///   is recommended when ToSymbolic is infeasible or unreliable. Manually
+  ///   configured sparsity must be conservative: if there is any Context for
+  ///   which an input port is direct-feedthrough to an output port, this
+  ///   function must return true for those two ports.
+  /// \return
+  virtual bool HasDirectFeedthrough(int input_port, int output_port) const {
+    // Symbolic analysis cannot determine which outputs are influenced by an
+    // abstract input.
 
-  virtual bool has_direct_feedthrough(int output_port) const {
+    if (this->get_input_port(input_port).get_data_type() == kAbstractValued) {
+      return true;
+    }
+    // Symbolic analysis cannot determine which inputs influence an abstract
+    // output.
+    if (this->get_output_port(output_port).get_data_type() == kAbstractValued) {
+      return true;
+    }
+
+    // Obtain the symbolic form of this System.
+    // TODO(david-german-tri): Maybe we shouldn't do this O(N^2) times?
+    std::unique_ptr<System<symbolic::Expression>> sym_sys = this->ToSymbolic();
+    if (sym_sys == nullptr) {
+      // No symbolic conversion is available.
+      return true;
+    }
+
+    DRAKE_ASSERT(input_port > 0 && input_port < get_num_input_ports());
+    DRAKE_ASSERT(output_port > 0 && output_port < get_num_output_ports());
+    auto context = sym_sys->CreateDefaultContext();
+    auto output = sym_sys->AllocateOutput(*context);
+
+    VectorX<symbolic::Expression> input_variables;
+    const int size = this->get_input_port(input_port).size();
+    input_variables.resize(size);
+    for (int i = 0; i < size; ++i) {
+      input_variables[i] = symbolic::Expression("u" + i);
+    }
     for (int i = 0; i < get_num_input_ports(); ++i) {
-      if (has_direct_feedthrough(i, output_port)) {
-        return true;
-      }
-    }
-    return false;
-  }
 
-  virtual bool has_direct_feedthrough(int input_port, int output_port) const {
-    return true;
+    }
+    context->FixIn
   }
 
   //@}
