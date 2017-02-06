@@ -51,7 +51,7 @@ class SimpleCar : public systems::LeafSystem<T> {
   SimpleCar();
 
   // System<T> overrides
-  bool has_any_direct_feedthrough() const override;
+  bool HasAnyDirectFeedthrough() const override;
   void DoCalcOutput(const systems::Context<T>& context,
                     systems::SystemOutput<T>* output) const override;
   void DoCalcTimeDerivatives(

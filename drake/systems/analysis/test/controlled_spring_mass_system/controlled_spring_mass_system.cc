@@ -73,7 +73,7 @@ PidControlledSpringMassSystem<T>::PidControlledSpringMassSystem(
 }
 
 template <typename T>
-bool PidControlledSpringMassSystem<T>::has_any_direct_feedthrough() const {
+bool PidControlledSpringMassSystem<T>::HasAnyDirectFeedthrough() const {
   return false;
 }
 

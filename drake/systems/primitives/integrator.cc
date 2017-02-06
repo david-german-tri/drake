@@ -36,7 +36,7 @@ void Integrator<T>::set_integral_value(
 // feed through an integrator but the dynamic signal during simulation does
 // not.
 template <typename T>
-bool Integrator<T>::has_any_direct_feedthrough() const {
+bool Integrator<T>::HasAnyDirectFeedthrough() const {
   return false;
 }
 

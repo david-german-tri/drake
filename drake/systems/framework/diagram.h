@@ -175,7 +175,7 @@ class Diagram : public System<T>,
 
   /// Returns true if any output of the Diagram might have direct-feedthrough
   /// from any input of the Diagram.
-  bool has_any_direct_feedthrough() const override {
+  bool HasAnyDirectFeedthrough() const override {
     // TODO(david-german-tri, bradking): Make this less conservative once the
     // sparsity matrix is available.
 
@@ -957,7 +957,7 @@ class Diagram : public System<T>,
       // If the destination system has no direct feedthrough, it does not
       // matter whether it is sorted before or after the systems on which
       // it depends.
-      if (!dest->has_any_direct_feedthrough()) {
+      if (!dest->HasAnyDirectFeedthrough()) {
         continue;
       }
       if (GetSystemIndexOrAbort(dest) <= GetSystemIndexOrAbort(src)) {
@@ -977,7 +977,7 @@ class Diagram : public System<T>,
     // If the system producing output_port_id has no direct-feedthrough, then
     // there is definitely no direct-feedthrough to output_port_id.
     const System<T>* system = output_port_id.first;
-    if (!system->has_any_direct_feedthrough()) {
+    if (!system->HasAnyDirectFeedthrough()) {
       return false;
     }
 

@@ -42,7 +42,7 @@ TEST_F(ZeroOrderHoldTest, Topology) {
   EXPECT_EQ(1, output_->get_num_ports());
   EXPECT_EQ(1, hold_->get_num_output_ports());
 
-  EXPECT_FALSE(hold_->has_any_direct_feedthrough());
+  EXPECT_FALSE(hold_->HasAnyDirectFeedthrough());
 }
 
 // Tests that the zero-order hold has discrete state.

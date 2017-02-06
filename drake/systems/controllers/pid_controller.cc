@@ -85,7 +85,7 @@ const VectorX<T>& PidController<T>::get_Kd_vector() const {
 }
 
 template <typename T>
-bool PidController<T>::has_any_direct_feedthrough() const {
+bool PidController<T>::HasAnyDirectFeedthrough() const {
   return !get_Kp_vector().isZero() || !get_Kd_vector().isZero();
 }
 

@@ -73,7 +73,7 @@ TEST_F(AdderTest, AdderIsStateless) {
 
 // Asserts that adders are systems with direct feedthrough inputs.
 TEST_F(AdderTest, AdderIsDirectFeedthrough) {
-  EXPECT_TRUE(adder_->has_any_direct_feedthrough());
+  EXPECT_TRUE(adder_->HasAnyDirectFeedthrough());
 }
 
 }  // namespace

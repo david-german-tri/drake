@@ -89,7 +89,7 @@ class SpringMassSystem : public LeafSystem<T> {
   using MyOutput = SystemOutput<T>;
 
   /// The input force to this system is not direct feedthrough.
-  bool has_any_direct_feedthrough() const override { return false; }
+  bool HasAnyDirectFeedthrough() const override { return false; }
 
   // Provide methods specific to this System.
 

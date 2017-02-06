@@ -27,7 +27,7 @@ SimpleCar<T>::SimpleCar() {
 }
 
 template <typename T>
-bool SimpleCar<T>::has_any_direct_feedthrough() const {
+bool SimpleCar<T>::HasAnyDirectFeedthrough() const {
   return false;
 }
 

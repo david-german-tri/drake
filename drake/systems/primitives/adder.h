@@ -31,7 +31,7 @@ class Adder : public LeafSystem<T> {
   Adder(int num_inputs, int size);
 
   /// All inputs to this system are directly fed through to its output.
-  bool has_any_direct_feedthrough() const override { return true; }
+  bool HasAnyDirectFeedthrough() const override { return true; }
 
   /// Returns the output port.
   const OutputPortDescriptor<T>& get_output_port() const;

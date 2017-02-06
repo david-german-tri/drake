@@ -186,7 +186,7 @@ TEST_F(DiagramTest, Topology) {
   }
 
   // The diagram has direct feedthrough.
-  EXPECT_TRUE(diagram_->has_any_direct_feedthrough());
+  EXPECT_TRUE(diagram_->HasAnyDirectFeedthrough());
 }
 
 TEST_F(DiagramTest, Path) {
@@ -585,7 +585,7 @@ class FeedbackDiagram : public Diagram<double> {
 // Tests that since there are no outputs, there is no direct feedthrough.
 GTEST_TEST(FeedbackDiagramTest, HasDirectFeedthrough) {
   FeedbackDiagram diagram;
-  EXPECT_FALSE(diagram.has_any_direct_feedthrough());
+  EXPECT_FALSE(diagram.HasAnyDirectFeedthrough());
 }
 
 // Tests that a FeedbackDiagram's context can be deleted without accessing

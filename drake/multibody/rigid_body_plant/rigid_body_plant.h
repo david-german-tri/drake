@@ -216,7 +216,7 @@ class RigidBodyPlant : public LeafSystem<T> {
   std::unique_ptr<SystemOutput<T>> AllocateOutput(
       const Context<T>& context) const override;
 
-  bool has_any_direct_feedthrough() const override;
+  bool HasAnyDirectFeedthrough() const override;
 
   /// Computes the force exerted by the stop when a joint hits its limit,
   /// using a linear stiffness model.

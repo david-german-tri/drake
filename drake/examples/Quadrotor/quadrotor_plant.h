@@ -22,7 +22,7 @@ class QuadrotorPlant : public systems::LeafSystem<T> {
                  double kF_arg, double kM_arg);
 
   /// The input force to this system is not direct feedthrough.
-  bool has_any_direct_feedthrough() const override { return false; }
+  bool HasAnyDirectFeedthrough() const override { return false; }
 
   ~QuadrotorPlant() override;
 

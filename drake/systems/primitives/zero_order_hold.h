@@ -20,7 +20,7 @@ class ZeroOrderHold : public LeafSystem<T> {
 
   /// In a zero-order hold, the output depends only on the state, so there is
   /// no direct-feedthrough.
-  bool has_any_direct_feedthrough() const override { return false; }
+  bool HasAnyDirectFeedthrough() const override { return false; }
 
  protected:
   /// Sets the output port value to the value that is currently latched in the

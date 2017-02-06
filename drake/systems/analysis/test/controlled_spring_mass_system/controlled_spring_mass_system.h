@@ -63,7 +63,7 @@ class PidControlledSpringMassSystem : public Diagram<T> {
   const SpringMassSystem<T>& get_plant() const;
 
   // System<T> overrides
-  bool has_any_direct_feedthrough() const override;
+  bool HasAnyDirectFeedthrough() const override;
 
  private:
   // These are references into the Diagram; no ownership implied.

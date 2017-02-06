@@ -31,7 +31,7 @@ class AcrobotPlant : public systems::LeafSystem<T> {
   AcrobotPlant& operator=(const AcrobotPlant<T>&) = delete;
 
   /// The input force to this system is not direct feedthrough.
-  bool has_any_direct_feedthrough() const override { return false; }
+  bool HasAnyDirectFeedthrough() const override { return false; }
 
   ///@{
   /// Manipulator equation of Acrobot: H * qdotdot + C = B*u.

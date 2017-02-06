@@ -226,7 +226,7 @@ class DiagramBuilder {
       //
       // TODO(david-german-tri): Make direct-feedthrough resolution more
       // fine-grained once #3170 is resolved.
-      if (dest->has_any_direct_feedthrough()) {
+      if (dest->HasAnyDirectFeedthrough()) {
         dependents[src].insert(dest);
         dependencies[dest].insert(src);
       }

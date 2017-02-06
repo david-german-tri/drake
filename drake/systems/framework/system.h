@@ -163,7 +163,7 @@ class System {
   /// override this method to return false.
   // TODO(4105): Provide a more descriptive mechanism to specify pairwise
   // (input_port, output_port) feedthrough.
-  virtual bool has_any_direct_feedthrough() const {
+  virtual bool HasAnyDirectFeedthrough() const {
     return (get_num_input_ports() > 0) && (get_num_output_ports() > 0);
   }
 

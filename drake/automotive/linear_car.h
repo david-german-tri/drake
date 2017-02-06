@@ -45,7 +45,7 @@ class LinearCar : public systems::LeafSystem<T> {
 
   // System<T> overrides.
   // Declare that the outputs are all algebraically isolated from the input.
-  bool has_any_direct_feedthrough() const override { return false; }
+  bool HasAnyDirectFeedthrough() const override { return false; }
 
  private:
   void DoCalcOutput(const systems::Context<T>& context,

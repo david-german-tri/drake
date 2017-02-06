@@ -88,7 +88,7 @@ class PidController : public Diagram<T> {
   /// A PID controller directly feedthroughs the error signal to the output when
   /// the proportional constant is non-zero. It feeds through the rate of change
   /// of the error signal when the derivative constant is non-zero.
-  bool has_any_direct_feedthrough() const override;
+  bool HasAnyDirectFeedthrough() const override;
 
   /// Sets the integral of the %PidController to @p value.
   /// @p value must be a column vector of the appropriate size.

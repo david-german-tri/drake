@@ -46,7 +46,7 @@ class LuenbergerObserver : public systems::LeafSystem<T> {
   LuenbergerObserver& operator=(const LuenbergerObserver<T>&) = delete;
 
   /// This system is not direct feedthrough.
-  bool has_any_direct_feedthrough() const override { return false; }
+  bool HasAnyDirectFeedthrough() const override { return false; }
 
   /// Provides access to the observer gain.
   const Eigen::MatrixXd& observer_gain() { return observer_gain_; }

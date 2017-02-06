@@ -38,7 +38,7 @@ class Integrator : public LeafSystem<T> {
                           const Eigen::Ref<const VectorX<T>>& value) const;
 
   // System<T> override.
-  bool has_any_direct_feedthrough() const override;
+  bool HasAnyDirectFeedthrough() const override;
 
   // Returns an Integrator<AutoDiffXd> with the same dimensions as this
   // Integrator.

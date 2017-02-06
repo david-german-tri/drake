@@ -143,22 +143,22 @@ class SystemTest : public ::testing::Test {
 
 TEST_F(SystemTest, Feedthrough) {
   // No inputs or outputs.
-  EXPECT_FALSE(system_.has_any_direct_feedthrough());
+  EXPECT_FALSE(system_.HasAnyDirectFeedthrough());
 
   // Both inputs and outputs.
   system_.AddAbstractInputPort();
   system_.AddAbstractOutputPort();
-  EXPECT_TRUE(system_.has_any_direct_feedthrough());
+  EXPECT_TRUE(system_.HasAnyDirectFeedthrough());
 
   // Only inputs.
   TestSystem input_only;
   input_only.AddAbstractInputPort();
-  EXPECT_FALSE(input_only.has_any_direct_feedthrough());
+  EXPECT_FALSE(input_only.HasAnyDirectFeedthrough());
 
   // Only outputs.
   TestSystem output_only;
   output_only.AddAbstractOutputPort();
-  EXPECT_FALSE(output_only.has_any_direct_feedthrough());
+  EXPECT_FALSE(output_only.HasAnyDirectFeedthrough());
 }
 
 TEST_F(SystemTest, MapVelocityToConfigurationDerivatives) {

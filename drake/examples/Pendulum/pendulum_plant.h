@@ -29,7 +29,7 @@ class PendulumPlant : public systems::LeafSystem<T> {
   using MyOutput = systems::SystemOutput<T>;
 
   /// The input force to this system is not direct feedthrough.
-  bool has_any_direct_feedthrough() const override { return false; }
+  bool HasAnyDirectFeedthrough() const override { return false; }
 
   /// Returns the input port to the externally applied force.
   const systems::InputPortDescriptor<T>& get_tau_port() const;

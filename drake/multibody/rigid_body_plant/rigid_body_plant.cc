@@ -138,7 +138,7 @@ void RigidBodyPlant<T>::set_contact_parameters(double penetration_stiffness,
 }
 
 template <typename T>
-bool RigidBodyPlant<T>::has_any_direct_feedthrough() const {
+bool RigidBodyPlant<T>::HasAnyDirectFeedthrough() const {
   return false;
 }
 
