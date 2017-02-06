@@ -161,10 +161,26 @@ class System {
   /// (implicit computations) in system diagrams. Any System for which none of
   /// the input ports ever feeds through to any of the output ports should
   /// override this method to return false.
-  // TODO(4105): Provide a more descriptive mechanism to specify pairwise
-  // (input_port, output_port) feedthrough.
   virtual bool HasAnyDirectFeedthrough() const {
-    return (get_num_input_ports() > 0) && (get_num_output_ports() > 0);
+    for (int i = 0; i < get_num_output_ports(); ++i) {
+      if (has_direct_feedthrough(i)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  virtual bool has_direct_feedthrough(int output_port) const {
+    for (int i = 0; i < get_num_input_ports(); ++i) {
+      if (has_direct_feedthrough(i, output_port)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  virtual bool has_direct_feedthrough(int input_port, int output_port) const {
+    return true;
   }
 
   //@}
@@ -706,7 +722,8 @@ class System {
   //@{
 
   /// Creates a deep copy of this System, transmogrified to use the symbolic
-  /// scalar type.
+  /// scalar type. Returns `nullptr` if DoToSymbolic has not been implemented.
+  ///
   /// Concrete Systems may shadow this with a more specific return type.
   std::unique_ptr<System<symbolic::Expression>> ToSymbolic() const {
     return std::unique_ptr<System<symbolic::Expression>>(DoToSymbolic());
@@ -714,7 +731,9 @@ class System {
 
   /// Creates a deep copy of `from`, transmogrified to use the symbolic
   /// scalar type. Returns `nullptr` if the template parameter `S` is not the
-  /// type of the concrete system, or a superclass thereof.
+  /// type of the concrete system, or a superclass thereof. Returns `nullptr`
+  /// if DoToSymbolic has not been implemented.
+  ///
   ///
   /// Usage: @code
   ///   MySystem<double> plant;
@@ -1029,12 +1048,14 @@ class System {
   /// pointer. Overrides should return a more specific covariant type.
   /// Templated overrides may assume that they are subclasses of System<double>.
   ///
+  /// Returns `nullptr` by default.  Direct-feedthrough detection relies on
+  /// this behavior.
+  ///
   /// No default implementation is provided in LeafSystem, since the member data
   /// of a particular concrete leaf system is not knowable to the framework.
   /// A default implementation is provided in Diagram, which Diagram subclasses
   /// with member data should override.
   virtual System<symbolic::Expression>* DoToSymbolic() const {
-    DRAKE_ABORT_MSG("Override DoToSymbolic before using ToSymbolic.");
     return nullptr;
   }
   //@}
