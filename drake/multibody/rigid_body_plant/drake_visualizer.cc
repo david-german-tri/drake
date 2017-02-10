@@ -1,5 +1,7 @@
 #include "drake/multibody/rigid_body_plant/drake_visualizer.h"
 
+#include "drake/systems/rendering/clients/drake_visualizer_lcm_client.h"
+
 namespace drake {
 namespace systems {
 
