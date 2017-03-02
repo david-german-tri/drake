@@ -53,7 +53,7 @@ class PoseAggregatorTest : public ::testing::Test {
     aggregator_.AddRigidBodyPlantInput(tree_);
     // Allocate another input for a PoseBundle.
     aggregator_.AddBundleInput("bundle", kNumGenericPoses);
-    // Allocate a third input for a PoseVector.
+    // Allocate a third input for a FrameKinematics.
     aggregator_.AddSingleInput("vector");
 
     context_ = aggregator_.CreateDefaultContext();
@@ -70,7 +70,7 @@ class PoseAggregatorTest : public ::testing::Test {
 };
 
 // Tests that PoseAggregator aggregates poses from a RigidBodyTree input, a
-// PoseVector input, and a PoseBundle input.
+// FrameKinematics input, and a PoseBundle input.
 TEST_F(PoseAggregatorTest, HeterogeneousAggregation) {
   // Set the rigid body state input so that the revolute joint has position
   // pi/2, which results in the link "link1" pointing in the +y direction.
@@ -87,7 +87,7 @@ TEST_F(PoseAggregatorTest, HeterogeneousAggregation) {
   generic_input.set_pose(1, Isometry3d(translation_1));
   context_->FixInputPort(1, AbstractValue::Make(generic_input));
 
-  // Set an arbitrary rotation in the PoseVector input.
+  // Set an arbitrary rotation in the FrameKinematics input.
   auto pose_vec = std::make_unique<PoseVector<double>>();
   pose_vec->set_rotation(Eigen::Quaternion<double>(0.5, 0.5, 0.5, 0.5));
   context_->FixInputPort(2, std::move(pose_vec));

@@ -71,7 +71,7 @@ GTEST_TEST(PoseVector, Translation) {
   EXPECT_EQ((Eigen::Vector3d{2.0, 4.0, 6.0}), p_out);
 }
 
-// Tests that PoseVector<T>::Clone has PoseVector type.
+// Tests that FrameKinematics<T>::Clone has FrameKinematics type.
 GTEST_TEST(PoseVector, Clone) {
   const PoseVector<double> vec;
   auto clone = vec.Clone();

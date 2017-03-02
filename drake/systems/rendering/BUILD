@@ -11,8 +11,8 @@ drake_cc_library(
     srcs = ["pose_aggregator.cc"],
     hdrs = ["pose_aggregator.h"],
     deps = [
+        ":frame_kinematics",
         ":pose_bundle",
-        ":pose_vector",
         "//drake/common",
         "//drake/common:autodiff",
         "//drake/multibody:rigid_body_tree",
@@ -21,9 +21,9 @@ drake_cc_library(
 )
 
 drake_cc_library(
-    name = "pose_vector",
-    srcs = ["pose_vector.cc"],
-    hdrs = ["pose_vector.h"],
+    name = "frame_kinematics",
+    srcs = ["frame_kinematics.cc"],
+    hdrs = ["frame_kinematics.h"],
     deps = [
         "//drake/math:geometric_transform",
         "//drake/systems/framework:vector",
@@ -45,10 +45,10 @@ drake_cc_library(
     srcs = ["drake_visualizer_client.cc"],
     hdrs = ["drake_visualizer_client.h"],
     deps = [
+        "@eigen//:eigen",
         "//drake/lcmtypes:viewer",
         "//drake/math:geometric_transform",
         "//drake/multibody/shapes",
-        "@eigen//:eigen",
     ],
 )
 
@@ -61,9 +61,9 @@ drake_cc_googletest(
 )
 
 drake_cc_googletest(
-    name = "pose_vector_test",
+    name = "frame_kinematics_test",
     deps = [
-        ":pose_vector",
+        ":frame_kinematics",
         "//drake/common:eigen_matrix_compare",
         "//drake/common:symbolic_test_util",
     ],

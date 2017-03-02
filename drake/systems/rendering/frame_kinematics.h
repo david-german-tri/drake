@@ -16,10 +16,10 @@ namespace rendering {
 /// @tparam T The Eigen scalar type. Supported scalar types are double,
 ///         AutoDiffXd, and symbolic::Expression.
 template <typename T>
-class PoseVector : public BasicVector<T> {
+class FrameKinematics : public BasicVector<T> {
  public:
-  PoseVector();
-  ~PoseVector() override;
+  FrameKinematics();
+  ~FrameKinematics() override;
 
   /// Returns the transform X_WA.
   Isometry3<T> get_isometry() const;
@@ -38,7 +38,7 @@ class PoseVector : public BasicVector<T> {
   static constexpr int kSize = 7;
 
  protected:
-  PoseVector<T>* DoClone() const override;
+  FrameKinematics<T>* DoClone() const override;
 };
 
 }  // namespace rendering
