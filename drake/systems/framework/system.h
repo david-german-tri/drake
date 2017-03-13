@@ -693,6 +693,23 @@ class System {
     return path.str();
   }
 
+  /// Returns a DOT file string describing this System.
+  /// http://www.graphviz.org/Documentation/dotguide.pdf
+  std::string GetDotString() const {
+    std::stringstream dot;
+    dot << "digraph " << get_name() << " {" << std::endl;
+    GetDotFragment(&dot);
+    dot << "}" << std::endl;
+    return dot.str();
+  }
+
+  /// Appends a DOT fragment to the @p dot stream.  The fragment must be valid
+  /// DOT when wrapped in a `digraph` or `subgraph` stanza.  Does nothing by
+  /// default.
+  virtual void GetDotFragment(std::stringstream* dot) const {
+    return;
+  }
+
   /// Returns the number of input ports of the system.
   int get_num_input_ports() const {
     return static_cast<int>(input_ports_.size());

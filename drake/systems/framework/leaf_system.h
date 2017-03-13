@@ -209,6 +209,28 @@ class LeafSystem : public System<T> {
     return DoHasDirectFeedthrough(sparsity.get(), input_port, output_port);
   }
 
+  void GetDotFragment(std::stringstream* dot) const override {
+    // Leaf systems have node shape record.  The record would have the following
+    // configuration for a leaf system with 3 inputs and 2 outputs.
+    // +-----------+---+---+
+    // | name  | 0 | 1 | 2 |
+    // |       | 0 | 1 |   |
+    // +-------+---+---+---+
+    *dot << "node [shape=record];" << std::endl;
+    const std::string name = this->get_name();
+    // Use the this pointer as a unique ID for the node in the dotfile.
+    *dot << reinterpret_cast<int64_t>(this);
+    *dot << " [shape=record, label=\"" << name;
+    const int n_input = this->get_num_input_ports();
+    const int n_output = this->get_num_output_ports();
+    for (int i = 0; i < n_input || i < n_output; ++i) {
+      const std::string in = i < n_input ? std::to_string(i) : "";
+      const std::string out = i < n_output ? std::to_string(i) : "";
+      *dot << " | {<u" << i << "> " << in << " |<y" << i << "> " << out << "}";
+    }
+    *dot << "\"];" << std::endl;
+  }
+
  protected:
   LeafSystem() {}
 

@@ -448,6 +448,26 @@ class Diagram : public System<T>,
     return System<T>::GetPath(output);
   }
 
+  void GetDotFragment(std::stringstream* dot) const override {
+    // Add all the subsystems as subgraphs.
+    for (const auto& subsystem : sorted_systems_) {
+      *dot << "subgraph " << reinterpret_cast<int64_t>(&subsystem);
+      *dot << " {" << std::endl;
+      subsystem->GetDotFragment(dot);
+      *dot << "}" << std::endl;
+    }
+    // Add all the connections as edges.
+    for (const auto& edge : dependency_graph_) {
+      const PortIdentifier& src = edge.second;
+      const PortIdentifier& dest = edge.first;
+      *dot << reinterpret_cast<int64_t>(src.first) << ":y" << src.second;
+      *dot << " -> ";
+      *dot << reinterpret_cast<int64_t>(dest.first) << ":u" << dest.second;
+      *dot << ";" << std::endl;
+    }
+    // TODO: add the input and output ports.
+  }
+
   /// Evaluates the value of the subsystem input port with the given @p id
   /// in the given @p context. Satisfies InputPortEvaluatorInterface.
   ///
