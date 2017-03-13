@@ -46,6 +46,7 @@ TEST_F(AdderTest, Topology) {
   const OutputPortDescriptor<double>& descriptor = adder_->get_output_port(0);
   EXPECT_EQ(kVectorValued, descriptor.get_data_type());
   EXPECT_EQ(3, descriptor.size());
+  EXPECT_EQ("foobar", adder_->GetDotString()) << adder_->GetDotString();
 }
 
 // Tests that the system computes the correct sum.

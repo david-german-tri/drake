@@ -191,6 +191,7 @@ TEST_F(DiagramTest, Topology) {
   EXPECT_TRUE(diagram_->HasDirectFeedthrough(0));
   EXPECT_TRUE(diagram_->HasDirectFeedthrough(1));
   EXPECT_FALSE(diagram_->HasDirectFeedthrough(2));
+  EXPECT_EQ("foobar", diagram_->GetDotString()) << diagram_->GetDotString();
 }
 
 TEST_F(DiagramTest, Path) {

@@ -137,6 +137,8 @@ int DoMain() {
       builder.template AddSystem<IiwaAndWsgPlantWithStateEstimator<double>>(
           std::move(model_ptr), iiwa_instance, wsg_instance, box_instance);
 
+  std::cout << model->GetDotString() << std::endl;
+/*
   const RigidBodyTree<double>& tree = model->get_plant().get_rigid_body_tree();
 
   drake::lcm::DrakeLcm lcm;
@@ -217,7 +219,7 @@ int DoMain() {
   lcm.StartReceiveThread();
   simulator.Initialize();
   simulator.StepTo(FLAGS_simulation_sec);
-
+*/
   return 0;
 }
 
