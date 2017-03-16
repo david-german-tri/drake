@@ -209,26 +209,46 @@ class LeafSystem : public System<T> {
     return DoHasDirectFeedthrough(sparsity.get(), input_port, output_port);
   }
 
+  // Emits a graphviz fragment for this System. Leaf systems are visualized as
+  // records. For instance, a leaf system with 2 inputs and 1 output is:
+  //
+  // 123456 [shape= record, label="name | {<u0> 0 |<y0> 0} | {<u1> 1 | }"];
+  //
+  // which looks like:
+  //
+  // +------------+----+
+  // | name  | u0 | u1 |
+  // |       | y0 |    |
+  // +-------+----+----+
   void GetDotFragment(std::stringstream* dot) const override {
-    // Leaf systems have node shape record.  The record would have the following
-    // configuration for a leaf system with 3 inputs and 2 outputs.
-    // +-----------+---+---+
-    // | name  | 0 | 1 | 2 |
-    // |       | 0 | 1 |   |
-    // +-------+---+---+---+
-    *dot << "node [shape=record];" << std::endl;
-    const std::string name = this->get_name();
     // Use the this pointer as a unique ID for the node in the dotfile.
-    *dot << reinterpret_cast<int64_t>(this);
-    *dot << " [shape=record, label=\"" << name;
+    const int64_t id = reinterpret_cast<int64_t>(this);
+    std::string name = this->get_name();
+    if (name.empty()) name = std::to_string(id);
+    *dot << id << " [shape=record, label=\"" << name;
     const int n_input = this->get_num_input_ports();
     const int n_output = this->get_num_output_ports();
     for (int i = 0; i < n_input || i < n_output; ++i) {
-      const std::string in = i < n_input ? std::to_string(i) : "";
-      const std::string out = i < n_output ? std::to_string(i) : "";
-      *dot << " | {<u" << i << "> " << in << " |<y" << i << "> " << out << "}";
+      const std::string in = i < n_input ? "u" + std::to_string(i) : "";
+      const std::string out = i < n_output ? "y" + std::to_string(i) : "";
+      *dot << " | {<u" << i << "> " << in
+           << " |<y" << i << "> " << out << "}";
     }
     *dot << "\"];" << std::endl;
+  }
+
+  void GetDotInputPort(const InputPortDescriptor<T>& port,
+                       std::stringstream* dot) const final {
+    DRAKE_DEMAND(port.get_system() == this);
+    const int64_t id = reinterpret_cast<int64_t>(this);
+    *dot << id << ":u" << port.get_index();
+  }
+
+  void GetDotOutputPort(const OutputPortDescriptor<T>& port,
+                        std::stringstream* dot) const final {
+    DRAKE_DEMAND(port.get_system() == this);
+    const int64_t id = reinterpret_cast<int64_t>(this);
+    *dot << id << ":y" << port.get_index();
   }
 
  protected:

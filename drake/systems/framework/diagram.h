@@ -449,23 +449,91 @@ class Diagram : public System<T>,
   }
 
   void GetDotFragment(std::stringstream* dot) const override {
-    // Add all the subsystems as subgraphs.
-    for (const auto& subsystem : sorted_systems_) {
-      *dot << "subgraph " << reinterpret_cast<int64_t>(&subsystem);
-      *dot << " {" << std::endl;
-      subsystem->GetDotFragment(dot);
-      *dot << "}" << std::endl;
+    // Open the Diagram.
+    const int64_t id = reinterpret_cast<int64_t>(this);
+    *dot << "subgraph cluster" << id << " {" << std::endl;
+
+    // Add some attributes.
+    *dot << "color=blue" << std::endl;
+    *dot << "splines=false" << std::endl;
+    std::string name = this->get_name();
+    if (name.empty()) name = std::to_string(id);
+    *dot << "label=\"" << name << "\";" << std::endl;
+
+    // Add the input and output ports as nodes.
+    *dot << "subgraph clusterinputports" << " {" << std::endl;
+    *dot << "rank=source" << std::endl;
+    *dot << "color=lightgrey" << std::endl;
+    *dot << "style=filled" << std::endl;
+    *dot << "label=\"input ports\"" << std::endl;
+    for (int i = 0; i < this->get_num_input_ports(); ++i) {
+      this->GetDotInputPort(this->get_input_port(i), dot);
+      *dot << "[label=\"u" << i << "\"];" << std::endl;
     }
+    *dot << "}" << std::endl;
+
+    *dot << "subgraph clusteroutputports" << " {" << std::endl;
+    *dot << "rank=sink" << std::endl;
+    *dot << "color=lightgrey" << std::endl;
+    *dot << "style=filled" << std::endl;
+    *dot << "label=\"output ports\"" << std::endl;
+    for (int i = 0; i < this->get_num_output_ports(); ++i) {
+      this->GetDotOutputPort(this->get_output_port(i), dot);
+      *dot << "[label=\"y" << i << "\"];" << std::endl;
+    }
+    *dot << "}" << std::endl;
+
+    // Add all the subsystems.
+    for (const auto& subsystem : sorted_systems_) {
+      subsystem->GetDotFragment(dot);
+    }
+
     // Add all the connections as edges.
     for (const auto& edge : dependency_graph_) {
       const PortIdentifier& src = edge.second;
+      const System<T>* src_sys = src.first;
       const PortIdentifier& dest = edge.first;
-      *dot << reinterpret_cast<int64_t>(src.first) << ":y" << src.second;
+      const System<T>* dest_sys = dest.first;
+      src_sys->GetDotOutputPort(src_sys->get_output_port(src.second), dot);
       *dot << " -> ";
-      *dot << reinterpret_cast<int64_t>(dest.first) << ":u" << dest.second;
+      dest_sys->GetDotInputPort(dest_sys->get_input_port(dest.second), dot);
       *dot << ";" << std::endl;
     }
-    // TODO: add the input and output ports.
+
+    // Add edges from the input and output port notes to the subsystems that
+    // actually service that port.
+    for (int i = 0; i < this->get_num_input_ports(); ++i) {
+      const auto& id = input_port_ids_[i];
+      this->GetDotInputPort(this->get_input_port(i), dot);
+      *dot << " -> ";
+      id.first->GetDotInputPort(id.first->get_input_port(id.second), dot);
+      *dot << ";" << std::endl;
+    }
+
+    for (int i = 0; i < this->get_num_output_ports(); ++i) {
+      const auto& id = output_port_ids_[i];
+      id.first->GetDotOutputPort(id.first->get_output_port(id.second), dot);
+      *dot << " -> ";
+      this->GetDotOutputPort(this->get_output_port(i), dot);
+      *dot << ";" << std::endl;
+    }
+
+    // Close the diagram.
+    *dot << "}" << std::endl;
+  }
+
+  void GetDotInputPort(const InputPortDescriptor<T>& port,
+                       std::stringstream* dot) const final {
+    DRAKE_DEMAND(port.get_system() == this);
+    const int64_t id = reinterpret_cast<int64_t>(this);
+    *dot << "_" << id << "_u" << port.get_index();
+  }
+
+  void GetDotOutputPort(const OutputPortDescriptor<T>& port,
+                        std::stringstream* dot) const final {
+    DRAKE_DEMAND(port.get_system() == this);
+    const int64_t id = reinterpret_cast<int64_t>(this);
+    *dot << "_" << id << "_y" << port.get_index();
   }
 
   /// Evaluates the value of the subsystem input port with the given @p id

@@ -710,6 +710,18 @@ class System {
     return;
   }
 
+  /// Appends a DOT fragment to the @p dot stream identifying the graphviz node
+  /// representing @p port.
+  virtual void GetDotInputPort(const InputPortDescriptor<T>& port,
+                               std::stringstream* dot) const {
+    return;
+  }
+
+  virtual void GetDotOutputPort(const OutputPortDescriptor<T>& port,
+                                std::stringstream* dot) const {
+    return;
+  }
+
   /// Returns the number of input ports of the system.
   int get_num_input_ports() const {
     return static_cast<int>(input_ports_.size());
