@@ -150,8 +150,8 @@ class MessageHandler : public DrakeLcmMessageHandlerInterface {
   // This is the callback method.
   void HandleMessage(const std::string& channel, const void* message_buffer,
       int message_size) override {
-    channel_ = channel;
     std::lock_guard<std::mutex> lock(message_mutex_);
+    channel_ = channel;
     received_message_.decode(message_buffer, 0, message_size);
   }
 
@@ -164,7 +164,8 @@ class MessageHandler : public DrakeLcmMessageHandlerInterface {
   }
 
   // Returns the channel on which the most recent message was received.
-  const std::string& get_receive_channel() {
+  const std::string get_receive_channel() {
+    std::lock_guard<std::mutex> lock(message_mutex_);
     return channel_;
   }
 
