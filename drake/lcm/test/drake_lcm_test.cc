@@ -35,9 +35,11 @@ class MessageSubscriber {
 
     // Initializes the fields of received_message_ so the test logic below can
     // determine whether the desired message was received.
-    received_message_.dim = 0;
-    received_message_.val.resize(received_message_.dim);
-    received_message_.coord.resize(received_message_.dim);
+    received_message_.dim = 2;
+    received_message_.val.resize(2);
+    received_message_.coord.resize(2);
+    received_message_.coord[0] = "dummy1";
+    received_message_.coord[1] = "dummy2";
     received_message_.timestamp = 0;
   }
 
@@ -45,6 +47,13 @@ class MessageSubscriber {
   drake::lcmt_drake_signal GetReceivedMessage() {
     drake::lcmt_drake_signal message_copy;
     std::lock_guard<std::mutex> lock(message_mutex_);
+    printf("&received_message_: %lx\n", reinterpret_cast<int64_t>(&received_message_));
+    for (size_t i = 0; i < received_message_.coord.size(); ++i) {
+      printf("...&received_message_.coord[%lu]: %lx %s\n",
+             i,
+             reinterpret_cast<int64_t>(received_message_.coord[i].data()),
+             received_message_.coord[i].data());
+    }
     message_copy = received_message_;
     return message_copy;
   }
@@ -122,6 +131,7 @@ TEST_F(DrakeLcmTest, PublishTest) {
     const drake::lcmt_drake_signal received_message =
         subscriber.GetReceivedMessage();
 
+    printf("&received_message: %lx\n", reinterpret_cast<int64_t>(&received_message));
     done = CompareLcmtDrakeSignalMessages(received_message, message_);
 
     if (!done) sleep_for(milliseconds(kDelayMS));
@@ -130,6 +140,8 @@ TEST_F(DrakeLcmTest, PublishTest) {
   dut.StopReceiveThread();
   EXPECT_TRUE(done);
 }
+
+/*
 
 // Handles received LCM messages.
 class MessageHandler : public DrakeLcmMessageHandlerInterface {
@@ -157,8 +169,8 @@ class MessageHandler : public DrakeLcmMessageHandlerInterface {
 
   // Returns a copy of the most recently received message.
   drake::lcmt_drake_signal GetReceivedMessage() {
-    drake::lcmt_drake_signal message_copy;
     std::lock_guard<std::mutex> lock(message_mutex_);
+    drake::lcmt_drake_signal message_copy;
     message_copy = received_message_;
     return message_copy;
   }
@@ -214,6 +226,7 @@ TEST_F(DrakeLcmTest, SubscribeTest) {
   dut.StopReceiveThread();
   EXPECT_TRUE(done);
 }
+*/
 
 }  // namespace
 }  // namespace lcm

@@ -34,6 +34,11 @@ bool CompareLcmtDrakeSignalMessages(const lcmt_drake_signal& actual_message,
     DRAKE_DEMAND(n == static_cast<int>(expected_message.coord.size()));
   }
 
+
+  printf("---CompareLcmtDrakeSignalMessages\n");
+  printf("---n: %d\n", n);
+  printf("---&actual_message.coord: %lx\n", reinterpret_cast<int64_t>(actual_message.coord.data()));
+  printf("---&expected_message.coord: %lx\n", reinterpret_cast<int64_t>(expected_message.coord.data()));
   for (int i = 0; i < n && result; ++i) {
     if (actual_message.val[i] != expected_message.val[i]) {
       drake::log()->trace(
@@ -41,6 +46,8 @@ bool CompareLcmtDrakeSignalMessages(const lcmt_drake_signal& actual_message,
           i, actual_message.val[i], expected_message.val[i]);
       result = false;
     }
+    printf("---&actual_message.coord[%d]: %lx %s\n", i, reinterpret_cast<int64_t>(actual_message.coord[i].data()), actual_message.coord[i].data());
+    printf("---&expected_message.coord[%d]: %lx %s\n", i, reinterpret_cast<int64_t>(expected_message.coord[i].data()), expected_message.coord[i].data());
     if (actual_message.coord[i] != expected_message.coord[i]) {
       drake::log()->trace(
           "CompareLcmtDrakeSignalMessages: coord {} mismatch ({} vs. {}).",

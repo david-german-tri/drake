@@ -127,6 +127,7 @@ build:lsan --linkopt -fsanitize=leak
 build:tsan --action_env=TSAN_OPTIONS
 build:tsan --copt -fsanitize=thread
 build:tsan --copt -O1
+build:tsan --copt -g
 build:tsan --copt -fno-omit-frame-pointer
 build:tsan --linkopt -fsanitize=thread
 
